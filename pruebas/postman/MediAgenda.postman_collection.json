@@ -1,0 +1,1993 @@
+{
+  "info": {
+    "_postman_id": "bea83dba-33f7-4aa2-9648-a2c5239ea88f",
+    "name": "MediAgenda - pruebas de API",
+    "description": "Pruebas funcionales de los 4 microservicios de MediAgenda a traves de nginx.\n\nCorrer en orden con el Collection Runner o con Newman: cada peticion guarda los codigos que usa la siguiente.\nEntornos: Local (Docker, http://localhost:8000) y AWS (EC2).\n\nCada peticion verifica ademas que la respuesta llegue en menos de 500 ms (requisito del proyecto).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "event": [
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Requisito del proyecto: toda API debe responder en menos de 500 ms",
+          "pm.test(\"Responde en menos de 500 ms\", () => pm.expect(pm.response.responseTime).to.be.below(500));",
+          "if (pm.response.text()) {",
+          "  pm.test(\"Responde JSON\", () => pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\"));",
+          "}"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "sufijo",
+      "value": ""
+    },
+    {
+      "key": "correoPaciente",
+      "value": ""
+    },
+    {
+      "key": "correoTemporal",
+      "value": ""
+    },
+    {
+      "key": "codigoPaciente",
+      "value": ""
+    },
+    {
+      "key": "codigoTemporal",
+      "value": ""
+    },
+    {
+      "key": "codigoMedico",
+      "value": ""
+    },
+    {
+      "key": "diasAdelante",
+      "value": ""
+    },
+    {
+      "key": "fechaAgenda",
+      "value": ""
+    },
+    {
+      "key": "idFranja1",
+      "value": ""
+    },
+    {
+      "key": "idFranja2",
+      "value": ""
+    },
+    {
+      "key": "idFranja3",
+      "value": ""
+    },
+    {
+      "key": "idFranja4",
+      "value": ""
+    },
+    {
+      "key": "codigoCita",
+      "value": ""
+    },
+    {
+      "key": "codigoCita2",
+      "value": ""
+    },
+    {
+      "key": "codigoCita3",
+      "value": ""
+    },
+    {
+      "key": "intentosTriage",
+      "value": ""
+    },
+    {
+      "key": "codigoMedicamento",
+      "value": ""
+    },
+    {
+      "key": "stockAntes",
+      "value": ""
+    },
+    {
+      "key": "codigoFormula",
+      "value": ""
+    },
+    {
+      "key": "codigoFormula2",
+      "value": ""
+    },
+    {
+      "key": "codigoFormula3",
+      "value": ""
+    },
+    {
+      "key": "intentosAvisos",
+      "value": ""
+    },
+    {
+      "key": "codigoAviso",
+      "value": ""
+    },
+    {
+      "key": "codigoManual",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "1. ms-pacientes",
+      "description": "CRUD de pacientes (puerto 8081 detras de nginx).",
+      "item": [
+        {
+          "name": "1.1 Registrar paciente",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/pacientes",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipoDocumento\": \"CC\",\n  \"numeroDocumento\": \"10{{sufijo}}\",\n  \"nombres\": \"Laura Valentina\",\n  \"apellidos\": \"Gomez Rojas\",\n  \"correo\": \"{{correoPaciente}}\",\n  \"telefono\": \"{{telefonoPaciente}}\",\n  \"fechaNacimiento\": \"1998-05-14\",\n  \"tipoSangre\": \"O+\",\n  \"alergias\": \"Penicilina\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Cada corrida usa datos nuevos: documento y correos con un sufijo aleatorio",
+                  "const sufijo = String(Math.floor(100000 + Math.random() * 900000));",
+                  "pm.collectionVariables.set(\"sufijo\", sufijo);",
+                  "const base = pm.environment.get(\"correoBase\") || \"laura@correo.com\";",
+                  "const [usuario, dominio] = base.split(\"@\");",
+                  "pm.collectionVariables.set(\"correoPaciente\", `${usuario}+${sufijo}@${dominio}`);",
+                  "pm.collectionVariables.set(\"correoTemporal\", `${usuario}+tmp${sufijo}@${dominio}`);",
+                  "pm.collectionVariables.set(\"diasAdelante\", 2);",
+                  "pm.collectionVariables.set(\"intentosTriage\", 0);",
+                  "pm.collectionVariables.set(\"intentosAvisos\", 0);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 201\", () => pm.response.to.have.status(201));",
+                  "const p = pm.response.json();",
+                  "pm.test(\"Codigo legible PAC-000000\", () => pm.expect(p.codigo).to.match(/^PAC-\\d{6}$/));",
+                  "pm.test(\"Queda activo\", () => pm.expect(p.activo).to.be.true);",
+                  "pm.test(\"No expone el UUID interno\", () => pm.expect(p).to.not.have.property(\"idPaciente\"));",
+                  "pm.collectionVariables.set(\"codigoPaciente\", p.codigo);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "1.2 Registrar mismo documento -> 409",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/pacientes",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipoDocumento\": \"CC\",\n  \"numeroDocumento\": \"10{{sufijo}}\",\n  \"nombres\": \"Laura Valentina\",\n  \"apellidos\": \"Gomez Rojas\",\n  \"correo\": \"otro{{sufijo}}@correo.com\",\n  \"telefono\": \"{{telefonoPaciente}}\",\n  \"fechaNacimiento\": \"1998-05-14\",\n  \"tipoSangre\": \"O+\",\n  \"alergias\": \"Penicilina\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"Codigo de error PACIENTE_DUPLICADO\", () => pm.expect(pm.response.json().codigo).to.eql(\"PACIENTE_DUPLICADO\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "1.3 Registrar con datos invalidos -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/pacientes",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipoDocumento\": \"XX\",\n  \"numeroDocumento\": \"1\",\n  \"nombres\": \"\",\n  \"apellidos\": \"Perez\",\n  \"correo\": \"sin-arroba\",\n  \"fechaNacimiento\": \"1990-01-01\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Codigo de error PETICION_INVALIDA\", () => pm.expect(pm.response.json().codigo).to.eql(\"PETICION_INVALIDA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "1.4 Consultar paciente",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/pacientes/{{codigoPaciente}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const p = pm.response.json();",
+                  "pm.test(\"Es el paciente registrado\", () => pm.expect(p.codigo).to.eql(pm.collectionVariables.get(\"codigoPaciente\")));",
+                  "pm.test(\"Trae nombre, documento y tipo de sangre\", () => {",
+                  "  pm.expect(p.nombres).to.eql(\"Laura Valentina\");",
+                  "  pm.expect(p.numeroDocumento).to.eql(\"10\" + pm.collectionVariables.get(\"sufijo\"));",
+                  "  pm.expect(p.tipoSangre).to.eql(\"O+\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "1.5 Listar pacientes por nombre",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/pacientes?nombre=laura&page=0&size=5"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const pagina = pm.response.json();",
+                  "pm.test(\"Respuesta paginada\", () => pm.expect(pagina).to.include.keys(\"contenido\", \"totalElementos\", \"totalPaginas\"));",
+                  "pm.test(\"Maximo 5 por pagina\", () => pm.expect(pagina.contenido.length).to.be.at.most(5));",
+                  "pm.test(\"Todos coinciden con el filtro\", () =>",
+                  "  pagina.contenido.forEach(p => pm.expect((p.nombres + \" \" + p.apellidos).toLowerCase()).to.include(\"laura\")));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "1.6 Actualizar paciente",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/pacientes/{{codigoPaciente}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipoDocumento\": \"CC\",\n  \"numeroDocumento\": \"10{{sufijo}}\",\n  \"nombres\": \"Laura Valentina\",\n  \"apellidos\": \"Gomez Rojas\",\n  \"correo\": \"{{correoPaciente}}\",\n  \"telefono\": \"{{telefonoPaciente}}\",\n  \"fechaNacimiento\": \"1998-05-14\",\n  \"tipoSangre\": \"O+\",\n  \"alergias\": \"Penicilina, ibuprofeno\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const p = pm.response.json();",
+                  "pm.test(\"Alergias actualizadas\", () => pm.expect(p.alergias).to.include(\"ibuprofeno\"));",
+                  "pm.test(\"El documento no cambia\", () => pm.expect(p.numeroDocumento).to.eql(\"10\" + pm.collectionVariables.get(\"sufijo\")));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "1.7 Consultar paciente inexistente -> 404",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/pacientes/PAC-999999"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Codigo de error PACIENTE_NO_ENCONTRADO\", () => pm.expect(pm.response.json().codigo).to.eql(\"PACIENTE_NO_ENCONTRADO\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "1.8 Registrar paciente temporal",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/pacientes",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipoDocumento\": \"CC\",\n  \"numeroDocumento\": \"20{{sufijo}}\",\n  \"nombres\": \"Paciente\",\n  \"apellidos\": \"Temporal\",\n  \"correo\": \"{{correoTemporal}}\",\n  \"telefono\": \"{{telefonoPaciente}}\",\n  \"fechaNacimiento\": \"1998-05-14\",\n  \"tipoSangre\": \"O+\",\n  \"alergias\": \"Penicilina\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 201\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"codigoTemporal\", pm.response.json().codigo);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "1.9 Desactivar paciente (borrado logico)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/pacientes/{{codigoTemporal}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 204\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "1.10 Paciente desactivado sigue consultable",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/pacientes/{{codigoTemporal}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Queda inactivo (no se borra el historial)\", () => pm.expect(pm.response.json().activo).to.be.false);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. ms-citas: medicos y agenda",
+      "description": "Medicos y franjas de atencion. Abrir agenda consulta festivos (API externa Nager.Date, con calculo local de respaldo).",
+      "item": [
+        {
+          "name": "2.1 Registrar medico",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/medicos",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Andrea Lopez\",\n  \"especialidad\": \"MEDICINA_GENERAL\",\n  \"correo\": \"andrea{{sufijo}}@mediagenda.co\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 201\", () => pm.response.to.have.status(201));",
+                  "const m = pm.response.json();",
+                  "pm.test(\"Codigo MED-0000\", () => pm.expect(m.codigo).to.match(/^MED-\\d{4,}$/));",
+                  "pm.collectionVariables.set(\"codigoMedico\", m.codigo);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2.2 Registrar mismo correo -> 409",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/medicos",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Andrea Lopez\",\n  \"especialidad\": \"MEDICINA_GENERAL\",\n  \"correo\": \"andrea{{sufijo}}@mediagenda.co\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"Codigo de error MEDICO_DUPLICADO\", () => pm.expect(pm.response.json().codigo).to.eql(\"MEDICO_DUPLICADO\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2.3 Registrar especialidad invalida -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/medicos",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Andrea Lopez\",\n  \"especialidad\": \"ASTROLOGIA\",\n  \"correo\": \"x{{sufijo}}@mediagenda.co\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Codigo de error PETICION_INVALIDA\", () => pm.expect(pm.response.json().codigo).to.eql(\"PETICION_INVALIDA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2.4 Consultar medico",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/medicos/{{codigoMedico}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Especialidad MEDICINA_GENERAL\", () => pm.expect(pm.response.json().especialidad).to.eql(\"MEDICINA_GENERAL\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2.5 Listar medicos por especialidad",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/medicos?especialidad=MEDICINA_GENERAL"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Todos son de MEDICINA_GENERAL\", () =>",
+                  "  pm.response.json().contenido.forEach(m => pm.expect(m.especialidad).to.eql(\"MEDICINA_GENERAL\")));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2.6 Abrir agenda (08:00-10:00 cada 30 min)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/medicos/{{codigoMedico}}/franjas",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fecha\": \"{{fechaAgenda}}\",\n  \"horaInicio\": \"08:00\",\n  \"horaFin\": \"10:00\",\n  \"duracionMinutos\": 30\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Fecha futura (hoy + diasAdelante). Si es festivo (422), la prueba reintenta con el dia siguiente.",
+                  "const f = new Date();",
+                  "f.setDate(f.getDate() + Number(pm.collectionVariables.get(\"diasAdelante\")));",
+                  "const dos = n => String(n).padStart(2, \"0\");",
+                  "pm.collectionVariables.set(\"fechaAgenda\", `${f.getFullYear()}-${dos(f.getMonth() + 1)}-${dos(f.getDate())}`);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const dias = Number(pm.collectionVariables.get(\"diasAdelante\"));",
+                  "if (pm.response.code === 422 && dias < 10) {",
+                  "  pm.test(\"Dia festivo detectado (422): se prueba el dia siguiente\", () =>",
+                  "    pm.expect(pm.response.json().codigo).to.eql(\"DIA_FESTIVO\"));",
+                  "  pm.collectionVariables.set(\"diasAdelante\", dias + 1);",
+                  "  postman.setNextRequest(pm.info.requestName);",
+                  "} else {",
+                  "  pm.test(\"Status 201\", () => pm.response.to.have.status(201));",
+                  "  const franjas = pm.response.json();",
+                  "  pm.test(\"Crea 4 franjas disponibles\", () => {",
+                  "    pm.expect(franjas).to.have.lengthOf(4);",
+                  "    franjas.forEach(f => pm.expect(f.estado).to.eql(\"DISPONIBLE\"));",
+                  "  });",
+                  "  franjas.forEach((f, i) => pm.collectionVariables.set(\"idFranja\" + (i + 1), f.idFranja));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2.7 Abrir agenda que se cruza -> 409",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/medicos/{{codigoMedico}}/franjas",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fecha\": \"{{fechaAgenda}}\",\n  \"horaInicio\": \"09:00\",\n  \"horaFin\": \"11:00\",\n  \"duracionMinutos\": 30\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"Codigo de error AGENDA_SOLAPADA\", () => pm.expect(pm.response.json().codigo).to.eql(\"AGENDA_SOLAPADA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2.8 Abrir agenda con duracion invalida -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/medicos/{{codigoMedico}}/franjas",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fecha\": \"{{fechaAgenda}}\",\n  \"horaInicio\": \"14:00\",\n  \"horaFin\": \"15:00\",\n  \"duracionMinutos\": 5\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Codigo de error PETICION_INVALIDA\", () => pm.expect(pm.response.json().codigo).to.eql(\"PETICION_INVALIDA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2.9 Listar franjas disponibles del medico",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/franjas?medico={{codigoMedico}}&fecha={{fechaAgenda}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"4 franjas disponibles\", () => pm.expect(pm.response.json().totalElementos).to.eql(4));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3. ms-citas: citas y triage con IA",
+      "description": "Agendar llama a ms-pacientes (REST), reserva la franja de forma atomica, publica el evento y pide el triage a Gemini en segundo plano.",
+      "item": [
+        {
+          "name": "3.1 Agendar cita",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/citas",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigoPaciente\": \"{{codigoPaciente}}\",\n  \"idFranja\": \"{{idFranja1}}\",\n  \"sintomas\": \"Tengo dolor en el pecho y me falta el aire desde ayer en la noche\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 201\", () => pm.response.to.have.status(201));",
+                  "const c = pm.response.json();",
+                  "pm.test(\"Codigo CIT-AAAA-000000\", () => pm.expect(c.codigo).to.match(/^CIT-\\d{4}-\\d{6}$/));",
+                  "pm.test(\"Queda AGENDADA\", () => pm.expect(c.estado).to.eql(\"AGENDADA\"));",
+                  "pm.test(\"Copia el nombre del paciente desde ms-pacientes\", () => pm.expect(c.nombrePaciente).to.include(\"Laura\"));",
+                  "pm.test(\"El triage existe (lo hace la IA en segundo plano)\", () => pm.expect(c.triage).to.have.property(\"estado\"));",
+                  "pm.collectionVariables.set(\"codigoCita\", c.codigo);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3.2 Agendar la misma franja -> 409",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/citas",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigoPaciente\": \"{{codigoPaciente}}\",\n  \"idFranja\": \"{{idFranja1}}\",\n  \"sintomas\": \"Otra persona quiere la misma franja\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"Codigo de error FRANJA_OCUPADA\", () => pm.expect(pm.response.json().codigo).to.eql(\"FRANJA_OCUPADA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3.3 Agendar con paciente inexistente -> 404",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/citas",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigoPaciente\": \"PAC-999999\",\n  \"idFranja\": \"{{idFranja2}}\",\n  \"sintomas\": \"Paciente que no existe\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Codigo de error PACIENTE_NO_ENCONTRADO\", () => pm.expect(pm.response.json().codigo).to.eql(\"PACIENTE_NO_ENCONTRADO\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3.4 Agendar con paciente inactivo -> 409",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/citas",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigoPaciente\": \"{{codigoTemporal}}\",\n  \"idFranja\": \"{{idFranja2}}\",\n  \"sintomas\": \"Paciente desactivado\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"Codigo de error PACIENTE_INACTIVO\", () => pm.expect(pm.response.json().codigo).to.eql(\"PACIENTE_INACTIVO\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3.5 Consultar cita (espera el triage con IA)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/citas/{{codigoCita}}"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// En el Runner/Newman se repite cada 3 s hasta que el triage deja de estar PENDIENTE (maximo ~60 s)",
+                  "if (Number(pm.collectionVariables.get(\"intentosTriage\")) > 0) { setTimeout(() => {}, 3000); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const c = pm.response.json();",
+                  "const n = Number(pm.collectionVariables.get(\"intentosTriage\"));",
+                  "if (c.triage.estado === \"PENDIENTE\" && n < 20) {",
+                  "  pm.collectionVariables.set(\"intentosTriage\", n + 1);",
+                  "  postman.setNextRequest(pm.info.requestName);",
+                  "} else {",
+                  "  pm.test(\"Triage COMPLETADO\", () => pm.expect(c.triage.estado).to.eql(\"COMPLETADO\"));",
+                  "  pm.test(\"Sugiere especialidad y prioridad\", () => {",
+                  "    pm.expect(c.triage.especialidadSugerida).to.be.a(\"string\").and.not.empty;",
+                  "    pm.expect([\"BAJA\", \"MEDIA\", \"ALTA\"]).to.include(c.triage.prioridad);",
+                  "  });",
+                  "  console.log(\"Triage:\", c.triage.especialidadSugerida, c.triage.prioridad, \"-\", c.triage.motivo);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3.6 Reprogramar cita a la segunda franja",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/citas/{{codigoCita}}/reprogramacion",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idFranja\": \"{{idFranja2}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Ahora esta en la segunda franja\", () =>",
+                  "  pm.expect(String(pm.response.json().franja.idFranja)).to.eql(String(pm.collectionVariables.get(\"idFranja2\"))));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3.7 Listar citas del paciente",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/citas?paciente={{codigoPaciente}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Aparece la cita\", () => pm.expect(pm.response.json().contenido.map(c => c.codigo))",
+                  "  .to.include(pm.collectionVariables.get(\"codigoCita\")));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3.8 Agendar segunda cita (para cancelar)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/citas",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigoPaciente\": \"{{codigoPaciente}}\",\n  \"idFranja\": \"{{idFranja3}}\",\n  \"sintomas\": \"Control de rutina, sin molestias\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 201\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"codigoCita2\", pm.response.json().codigo);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3.9 Cancelar segunda cita",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/citas/{{codigoCita2}}/cancelacion"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Queda CANCELADA\", () => pm.expect(pm.response.json().estado).to.eql(\"CANCELADA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3.10 Cancelar otra vez -> 409",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/citas/{{codigoCita2}}/cancelacion"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"Codigo de error CITA_NO_AGENDADA\", () => pm.expect(pm.response.json().codigo).to.eql(\"CITA_NO_AGENDADA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3.11 La franja cancelada vuelve a estar disponible",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/franjas?medico={{codigoMedico}}&fecha={{fechaAgenda}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const ids = pm.response.json().contenido.map(f => String(f.idFranja));",
+                  "pm.test(\"Franja 1 (liberada al reprogramar) y franja 3 (liberada al cancelar) disponibles\", () => {",
+                  "  pm.expect(ids).to.include(String(pm.collectionVariables.get(\"idFranja1\")));",
+                  "  pm.expect(ids).to.include(String(pm.collectionVariables.get(\"idFranja3\")));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3.12 Marcar cita como atendida",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/citas/{{codigoCita}}/atencion"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Queda ATENDIDA\", () => pm.expect(pm.response.json().estado).to.eql(\"ATENDIDA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3.13 Consultar cita inexistente -> 404",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/citas/CIT-2000-999999"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Codigo de error CITA_NO_ENCONTRADA\", () => pm.expect(pm.response.json().codigo).to.eql(\"CITA_NO_ENCONTRADA\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "4. ms-farmacia",
+      "description": "Medicamentos y formulas. Emitir llama a ms-citas (REST) para validar que la cita fue atendida; dispensar descuenta stock con bloqueo de filas.",
+      "item": [
+        {
+          "name": "4.1 Registrar medicamento",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/medicamentos",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Loratadina {{sufijo}}\",\n  \"presentacion\": \"Tableta 10 mg\",\n  \"stock\": 20\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 201\", () => pm.response.to.have.status(201));",
+                  "const m = pm.response.json();",
+                  "pm.test(\"Codigo MDT-0000 y stock inicial 20\", () => { pm.expect(m.codigo).to.match(/^MDT-\\d{4,}$/); pm.expect(m.stock).to.eql(20); });",
+                  "pm.collectionVariables.set(\"codigoMedicamento\", m.codigo);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4.2 Registrar el mismo medicamento -> 409",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/medicamentos",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Loratadina {{sufijo}}\",\n  \"presentacion\": \"Tableta 10 mg\",\n  \"stock\": 20\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"Codigo de error MEDICAMENTO_DUPLICADO\", () => pm.expect(pm.response.json().codigo).to.eql(\"MEDICAMENTO_DUPLICADO\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4.3 Consultar medicamento",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/medicamentos/{{codigoMedicamento}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Presentacion correcta\", () => pm.expect(pm.response.json().presentacion).to.eql(\"Tableta 10 mg\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4.4 Buscar medicamentos por nombre",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/medicamentos?nombre=acetaminofen"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const lista = pm.response.json().contenido;",
+                  "const mdt1 = lista.find(m => m.codigo === \"MDT-0001\");",
+                  "pm.test(\"Encuentra el acetaminofen precargado (MDT-0001)\", () => pm.expect(mdt1).to.exist);",
+                  "pm.collectionVariables.set(\"stockAntes\", mdt1 ? mdt1.stock : 0);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4.5 Reabastecer stock (+50)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/medicamentos/{{codigoMedicamento}}/stock",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cantidad\": 50\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Stock 20 + 50 = 70\", () => pm.expect(pm.response.json().stock).to.eql(70));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4.6 Reabastecer con cantidad invalida -> 400",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/medicamentos/{{codigoMedicamento}}/stock",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cantidad\": -5\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Codigo de error PETICION_INVALIDA\", () => pm.expect(pm.response.json().codigo).to.eql(\"PETICION_INVALIDA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4.7 Emitir formula para cita cancelada -> 409",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/formulas",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigoCita\": \"{{codigoCita2}}\",\n  \"items\": [\n    {\n      \"codigoMedicamento\": \"MDT-0001\",\n      \"cantidad\": 1\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"Codigo de error CITA_NO_ATENDIDA\", () => pm.expect(pm.response.json().codigo).to.eql(\"CITA_NO_ATENDIDA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4.8 Emitir formula",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/formulas",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigoCita\": \"{{codigoCita}}\",\n  \"items\": [\n    {\n      \"codigoMedicamento\": \"MDT-0001\",\n      \"cantidad\": 10,\n      \"indicaciones\": \"1 tableta cada 8 horas\"\n    },\n    {\n      \"codigoMedicamento\": \"{{codigoMedicamento}}\",\n      \"cantidad\": 5,\n      \"indicaciones\": \"1 diaria\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 201\", () => pm.response.to.have.status(201));",
+                  "const f = pm.response.json();",
+                  "pm.test(\"Codigo FOR-AAAA-000000 y estado EMITIDA\", () => { pm.expect(f.codigo).to.match(/^FOR-\\d{4}-\\d{6}$/); pm.expect(f.estado).to.eql(\"EMITIDA\"); });",
+                  "pm.test(\"Dos medicamentos con su nombre\", () => { pm.expect(f.items).to.have.lengthOf(2); pm.expect(f.items[0].medicamento).to.be.a(\"string\"); });",
+                  "pm.collectionVariables.set(\"codigoFormula\", f.codigo);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4.9 Segunda formula para la misma cita -> 409",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/formulas",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigoCita\": \"{{codigoCita}}\",\n  \"items\": [\n    {\n      \"codigoMedicamento\": \"MDT-0001\",\n      \"cantidad\": 1\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"Codigo de error FORMULA_EXISTENTE\", () => pm.expect(pm.response.json().codigo).to.eql(\"FORMULA_EXISTENTE\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4.10 Consultar formula",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/formulas/{{codigoFormula}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Es de la cita atendida\", () => pm.expect(pm.response.json().codigoCita).to.eql(pm.collectionVariables.get(\"codigoCita\")));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4.11 Listar formulas del paciente",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/formulas?paciente={{codigoPaciente}}&estado=EMITIDA"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Aparece la formula emitida\", () => pm.expect(pm.response.json().contenido.map(f => f.codigo)).to.include(pm.collectionVariables.get(\"codigoFormula\")));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4.12 Dispensar formula",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/formulas/{{codigoFormula}}/dispensacion"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const f = pm.response.json();",
+                  "pm.test(\"Queda DISPENSADA con fecha\", () => { pm.expect(f.estado).to.eql(\"DISPENSADA\"); pm.expect(f.fechaDispensacion).to.exist; });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4.13 Dispensar otra vez -> 409",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/formulas/{{codigoFormula}}/dispensacion"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"Codigo de error FORMULA_NO_EMITIDA\", () => pm.expect(pm.response.json().codigo).to.eql(\"FORMULA_NO_EMITIDA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4.14 El stock se desconto",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/medicamentos/MDT-0001"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const antes = Number(pm.collectionVariables.get(\"stockAntes\"));",
+                  "pm.test(`Stock de MDT-0001 bajo 10 (antes ${antes})`, () => pm.expect(pm.response.json().stock).to.eql(antes - 10));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4.15 Agendar tercera cita (ms-citas)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/citas",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigoPaciente\": \"{{codigoPaciente}}\",\n  \"idFranja\": \"{{idFranja1}}\",\n  \"sintomas\": \"Rinitis y estornudos frecuentes\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 201\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"codigoCita3\", pm.response.json().codigo);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4.16 Atender tercera cita (ms-citas)",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/citas/{{codigoCita3}}/atencion"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4.17 Emitir formula para anular",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/formulas",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigoCita\": \"{{codigoCita3}}\",\n  \"items\": [\n    {\n      \"codigoMedicamento\": \"{{codigoMedicamento}}\",\n      \"cantidad\": 2\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 201\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"codigoFormula2\", pm.response.json().codigo);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4.18 Anular formula",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/formulas/{{codigoFormula2}}/anulacion"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Queda ANULADA\", () => pm.expect(pm.response.json().estado).to.eql(\"ANULADA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4.19 Anular otra vez -> 409",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/formulas/{{codigoFormula2}}/anulacion"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"Codigo de error FORMULA_NO_EMITIDA\", () => pm.expect(pm.response.json().codigo).to.eql(\"FORMULA_NO_EMITIDA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4.20 Nueva formula pidiendo mas de lo que hay",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/formulas",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigoCita\": \"{{codigoCita3}}\",\n  \"items\": [\n    {\n      \"codigoMedicamento\": \"{{codigoMedicamento}}\",\n      \"cantidad\": 100\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 201\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"Se puede emitir: la anterior estaba ANULADA\", () => pm.expect(pm.response.json().estado).to.eql(\"EMITIDA\"));",
+                  "pm.collectionVariables.set(\"codigoFormula3\", pm.response.json().codigo);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4.21 Dispensar sin stock suficiente -> 409",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/formulas/{{codigoFormula3}}/dispensacion"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"Codigo de error STOCK_INSUFICIENTE\", () => pm.expect(pm.response.json().codigo).to.eql(\"STOCK_INSUFICIENTE\"));",
+                  "pm.test(\"Explica cuanto hay y cuanto se pide\", () => pm.expect(pm.response.json().mensaje).to.match(/\\d+/));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4.22 Consultar formula inexistente -> 404",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/formulas/FOR-2000-999999"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Codigo de error FORMULA_NO_ENCONTRADA\", () => pm.expect(pm.response.json().codigo).to.eql(\"FORMULA_NO_ENCONTRADA\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "5. ms-notificaciones",
+      "description": "Los avisos se crean solos al llegar los eventos (RabbitMQ en local, Amazon SQS en AWS) y se envian por correo (Mailpit en local, Amazon SES en AWS).",
+      "item": [
+        {
+          "name": "5.1 Historial de avisos del paciente (espera los envios)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/notificaciones?paciente={{codigoPaciente}}&size=50"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Los correos se envian en segundo plano: se repite cada 3 s hasta que no quede ninguno PENDIENTE",
+                  "const n = Number(pm.collectionVariables.get(\"intentosAvisos\"));",
+                  "setTimeout(() => {}, n > 0 ? 3000 : 1000);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const avisos = pm.response.json().contenido;",
+                  "const n = Number(pm.collectionVariables.get(\"intentosAvisos\"));",
+                  "const pendientes = avisos.filter(a => a.estado === \"PENDIENTE\").length;",
+                  "if ((pendientes > 0 || avisos.length < 5) && n < 15) {",
+                  "  pm.collectionVariables.set(\"intentosAvisos\", n + 1);",
+                  "  postman.setNextRequest(pm.info.requestName);",
+                  "} else {",
+                  "  const tipos = avisos.map(a => a.tipo);",
+                  "  pm.test(\"Llegaron los eventos de citas y formulas\", () => {",
+                  "    pm.expect(tipos).to.include(\"cita.agendada\");",
+                  "    pm.expect(tipos).to.include(\"cita.cancelada\");",
+                  "    pm.expect(tipos).to.include(\"formula.dispensada\");",
+                  "  });",
+                  "  pm.test(\"Ningun aviso fallo\", () => avisos.forEach(a => pm.expect(a.estado, a.codigo + \" \" + (a.ultimoError || \"\")).to.not.eql(\"FALLIDA\")));",
+                  "  const enviada = avisos.find(a => a.estado === \"ENVIADA\" && a.canal === \"CORREO\");",
+                  "  const sms = avisos.filter(a => a.canal === \"SMS\");",
+                  "  if (pm.environment.get(\"telefonoPaciente\")) {",
+                  "    pm.test(\"Tambien se generaron avisos por SMS\", () => pm.expect(sms.length).to.be.above(0));",
+                  "  }",
+                  "  pm.test(\"Hay avisos ENVIADA\", () => pm.expect(enviada).to.exist);",
+                  "  if (enviada) pm.collectionVariables.set(\"codigoAviso\", enviada.codigo);",
+                  "  console.log(avisos.map(a => `${a.codigo} ${a.canal} ${a.tipo} ${a.estado}`).join(\"\\n\"));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5.2 Consultar aviso",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/notificaciones/{{codigoAviso}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const a = pm.response.json();",
+                  "pm.test(\"Va al correo del paciente y tiene asunto y cuerpo\", () => {",
+                  "  pm.expect(a.destinatario).to.eql(pm.collectionVariables.get(\"correoPaciente\"));",
+                  "  pm.expect(a.asunto).to.not.be.empty; pm.expect(a.cuerpo).to.not.be.empty;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5.3 Marcar aviso como leido",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/notificaciones/{{codigoAviso}}/lectura"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Queda LEIDA\", () => pm.expect(pm.response.json().estado).to.eql(\"LEIDA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5.4 Marcar leido otra vez (idempotente)",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/notificaciones/{{codigoAviso}}/lectura"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Sigue LEIDA\", () => pm.expect(pm.response.json().estado).to.eql(\"LEIDA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5.5 Reintentar un aviso que no fallo -> 409",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/notificaciones/{{codigoAviso}}/reintento"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"Codigo de error NOTIFICACION_NO_FALLIDA\", () => pm.expect(pm.response.json().codigo).to.eql(\"NOTIFICACION_NO_FALLIDA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5.6 Enviar aviso manual",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/notificaciones",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"destinatario\": \"{{correoPaciente}}\",\n  \"asunto\": \"Recordatorio MediAgenda\",\n  \"cuerpo\": \"Hola, este es un aviso de prueba.\",\n  \"codigoPaciente\": \"{{codigoPaciente}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 202\", () => pm.response.to.have.status(202));",
+                  "const a = pm.response.json();",
+                  "pm.test(\"Se acepta y se envia en segundo plano\", () => { pm.expect(a.tipo).to.eql(\"manual\"); pm.expect([\"PENDIENTE\", \"ENVIADA\"]).to.include(a.estado); });",
+                  "pm.collectionVariables.set(\"codigoManual\", a.codigo);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5.7 Aviso manual con correo invalido -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/notificaciones",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"destinatario\": \"no-es-correo\",\n  \"asunto\": \"x\",\n  \"cuerpo\": \"y\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Codigo de error PETICION_INVALIDA\", () => pm.expect(pm.response.json().codigo).to.eql(\"PETICION_INVALIDA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5.8 El aviso manual quedo enviado",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/notificaciones/{{codigoManual}}"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "setTimeout(() => {}, 2000);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"ENVIADA\", () => pm.expect(pm.response.json().estado).to.eql(\"ENVIADA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5.9 Listar avisos enviados",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/notificaciones?estado=ENVIADA&size=5"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Todos ENVIADA\", () => pm.response.json().contenido.forEach(a => pm.expect(a.estado).to.eql(\"ENVIADA\")));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5.10 Consultar aviso inexistente -> 404",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/notificaciones/NOT-2000-999999"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Codigo de error NOTIFICACION_NO_ENCONTRADA\", () => pm.expect(pm.response.json().codigo).to.eql(\"NOTIFICACION_NO_ENCONTRADA\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

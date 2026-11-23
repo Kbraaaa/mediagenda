@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  POM agregador: solo sirve para compilar y probar todos los microservicios
+  con un solo comando desde la raiz (mvn verify). Cada microservicio sigue
+  siendo independiente: tiene su propio pom con spring-boot-starter-parent.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.mediagenda</groupId>
+    <artifactId>mediagenda</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+    <packaging>pom</packaging>
+    <name>mediagenda</name>
+    <description>MediAgenda - microservicios para gestion de citas medicas</description>
+
+    <modules>
+        <module>ms-pacientes</module>
+        <module>ms-citas</module>
+        <module>ms-farmacia</module>
+        <module>ms-notificaciones</module>
+    </modules>
+</project>

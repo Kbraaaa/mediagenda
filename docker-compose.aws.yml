@@ -1,0 +1,104 @@
+# MediAgenda en AWS (una instancia EC2). Uso:
+#   docker compose -f docker-compose.aws.yml --env-file .env up -d --build
+# Diferencias con el entorno local:
+#   - Eventos por Amazon SQS en vez de RabbitMQ, correo por Amazon SES en vez de Mailpit (perfil "aws").
+#   - Las credenciales de AWS NO van aqui: el SDK las toma del rol de IAM de la instancia.
+#   - Solo se publica el puerto 80 (nginx). La base de datos y los servicios no quedan expuestos.
+name: mediagenda
+
+x-aws: &aws
+  SPRING_PROFILES_ACTIVE: aws
+  AWS_REGION: ${AWS_REGION:-us-east-2}
+  SQS_COLA_URL: ${SQS_COLA_URL}
+  DB_USER: ${DB_USER:-postgres}
+  DB_PASSWORD: ${DB_PASSWORD}
+
+services:
+  postgres:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}"]
+      interval: 5s
+      retries: 10
+
+  ms-pacientes:
+    build: ./ms-pacientes
+    restart: unless-stopped
+    environment:
+      <<: *aws
+      DB_URL: jdbc:postgresql://postgres:5432/pacientes_db
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck: &salud
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8081/actuator/health || exit 1"]
+      interval: 10s
+      retries: 12
+
+  ms-citas:
+    build: ./ms-citas
+    restart: unless-stopped
+    environment:
+      <<: *aws
+      DB_URL: jdbc:postgresql://postgres:5432/citas_db
+      PACIENTES_URL: http://ms-pacientes:8081
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODELO: ${GEMINI_MODELO:-gemini-3.5-flash-lite}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      <<: *salud
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8082/actuator/health || exit 1"]
+
+  ms-farmacia:
+    build: ./ms-farmacia
+    restart: unless-stopped
+    environment:
+      <<: *aws
+      DB_URL: jdbc:postgresql://postgres:5432/farmacia_db
+      CITAS_URL: http://ms-citas:8082
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      <<: *salud
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8083/actuator/health || exit 1"]
+
+  ms-notificaciones:
+    build: ./ms-notificaciones
+    restart: unless-stopped
+    environment:
+      <<: *aws
+      DB_URL: jdbc:postgresql://postgres:5432/notificaciones_db
+      CORREO_REMITENTE: ${CORREO_REMITENTE}
+      SMS: ${SMS:-simulado}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      <<: *salud
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8084/actuator/health || exit 1"]
+
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - ms-pacientes
+      - ms-citas
+      - ms-farmacia
+      - ms-notificaciones
+
+volumes:
+  pgdata:

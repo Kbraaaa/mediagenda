@@ -1,0 +1,35 @@
+# Integracion continua: en cada push o pull request compila y prueba cada
+# microservicio. Si la cobertura de JaCoCo baja del 90 %, el pipeline falla.
+# (El despliegue a AWS se agrega en otro job cuando la cuenta este lista.)
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  pruebas:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        servicio: [ms-pacientes, ms-citas, ms-farmacia, ms-notificaciones]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Pruebas y cobertura (${{ matrix.servicio }})
+        run: mvn -B verify -f ${{ matrix.servicio }}/pom.xml
+
+      - name: Publicar reporte de cobertura
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cobertura-${{ matrix.servicio }}
+          path: ${{ matrix.servicio }}/target/site/jacoco/

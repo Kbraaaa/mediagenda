@@ -1,0 +1,41 @@
+# Maven
+target/
+!.mvn/wrapper/maven-wrapper.jar
+
+# IntelliJ
+.idea/
+*.iml
+out/
+
+# VS Code
+.vscode/
+
+# Secretos: nunca subir claves
+.env
+*.pem
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+
+# Reportes de pruebas generados
+newman/
+k6/resultados/
+resultado-pruebas.txt
+!.env.example
+!.env.aws.example
+aws-cambios.zip
+resumen-pruebas.txt
+pruebas/postman.zip
+pruebas/postman/reporte-*.html
+pruebas/postman/resultado-postman-*.txt
+
+# Temporales y registros locales
+*.tmp
+docker-log.txt
+pruebas/log-*.txt
+pruebas/resultado-*.txt
+sms.zip
+github-aws.zip
+region.zip
+sms-aws.zip
