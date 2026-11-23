@@ -1,6 +1,6 @@
 {
   "info": {
-    "_postman_id": "bea83dba-33f7-4aa2-9648-a2c5239ea88f",
+    "_postman_id": "823b80fa-041f-4e06-b0dd-a58b3bed16a5",
     "name": "MediAgenda - pruebas de API",
     "description": "Pruebas funcionales de los 4 microservicios de MediAgenda a traves de nginx.\n\nCorrer en orden con el Collection Runner o con Newman: cada peticion guarda los codigos que usa la siguiente.\nEntornos: Local (Docker, http://localhost:8000) y AWS (EC2).\n\nCada peticion verifica ademas que la respuesta llegue en menos de 500 ms (requisito del proyecto).",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"

@@ -62,6 +62,11 @@ class ConfigTest {
         assertThat(c.eventoGateway(mock(RabbitTemplate.class), "mediagenda.eventos", "SQS",
                 "https://sqs.us-east-1.amazonaws.com/123/cola", "us-east-1"))
                 .isInstanceOf(com.mediagenda.citas.infrastructure.eventos.SqsEventoAdapter.class);
+        PacienteGateway remoto = mock(PacienteGateway.class);
+        assertThat(c.calentamiento(mock(EventoGateway.class), remoto, 9, 0).calentar()).isZero();
+        assertThat(c.calentamiento(new com.mediagenda.citas.infrastructure.eventos.SqsEventoAdapter(
+                mock(software.amazon.awssdk.services.sqs.SqsClient.class), "url"), remoto, 9, 0).calentar()).isZero();
+        org.mockito.Mockito.verify(remoto, org.mockito.Mockito.times(2)).buscar(org.mockito.ArgumentMatchers.anyString());
         ThreadPoolTaskExecutor executor = c.triageExecutor();
         assertThat(executor.getMaxPoolSize()).isEqualTo(1);
         assertThat(c.solicitudTriageGateway(mock(ProcesarTriageUseCase.class))).isNotNull();

@@ -45,5 +45,10 @@ class ConfigTest {
         assertThat(i.eventoGateway(mock(RabbitTemplate.class), "mediagenda.eventos", "SQS",
                 "https://sqs.us-east-1.amazonaws.com/123/cola", "us-east-1"))
                 .isInstanceOf(com.mediagenda.farmacia.infrastructure.eventos.SqsEventoAdapter.class);
+        CitaGateway remoto = mock(CitaGateway.class);
+        assertThat(i.calentamiento(mock(EventoGateway.class), remoto, 9, 0).calentar()).isZero();
+        assertThat(i.calentamiento(new com.mediagenda.farmacia.infrastructure.eventos.SqsEventoAdapter(
+                mock(software.amazon.awssdk.services.sqs.SqsClient.class), "url"), remoto, 9, 0).calentar()).isZero();
+        org.mockito.Mockito.verify(remoto, org.mockito.Mockito.times(2)).buscar(org.mockito.ArgumentMatchers.anyString());
     }
 }

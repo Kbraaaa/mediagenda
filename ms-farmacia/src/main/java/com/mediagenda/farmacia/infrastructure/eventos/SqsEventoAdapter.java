@@ -5,7 +5,9 @@ import com.mediagenda.farmacia.domain.model.gateway.EventoGateway;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.sqs.SqsClient;
+import software.amazon.awssdk.services.sqs.model.GetQueueAttributesRequest;
 import software.amazon.awssdk.services.sqs.model.MessageAttributeValue;
+import software.amazon.awssdk.services.sqs.model.QueueAttributeName;
 import software.amazon.awssdk.services.sqs.model.SendMessageRequest;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -42,5 +44,11 @@ public class SqsEventoAdapter implements EventoGateway {
             log.error("No se pudo publicar en SQS el evento {} de la formula {}: {}",
                     evento.tipo(), evento.codigoFormula(), e.getMessage());
         }
+    }
+
+    /** Abre la conexion con SQS y obtiene los permisos del rol antes de la primera peticion de un usuario. */
+    public void precalentar() {
+        sqs.getQueueAttributes(GetQueueAttributesRequest.builder()
+                .queueUrl(colaUrl).attributeNames(QueueAttributeName.APPROXIMATE_NUMBER_OF_MESSAGES).build());
     }
 }

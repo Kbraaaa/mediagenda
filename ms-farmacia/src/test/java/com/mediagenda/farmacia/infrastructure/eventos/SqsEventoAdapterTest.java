@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.services.sqs.SqsClient;
+import software.amazon.awssdk.services.sqs.model.GetQueueAttributesRequest;
 import software.amazon.awssdk.services.sqs.model.SendMessageRequest;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -40,5 +41,16 @@ class SqsEventoAdapterTest {
         when(sqs.sendMessage(any(SendMessageRequest.class))).thenThrow(SdkClientException.create("sin red"));
 
         assertThatCode(() -> new SqsEventoAdapter(sqs, COLA).publicar(EVENTO)).doesNotThrowAnyException();
+    }
+
+    @Test
+    void precalentarConsultaLaCola() {
+        SqsClient sqs = mock(SqsClient.class);
+
+        new SqsEventoAdapter(sqs, COLA).precalentar();
+
+        ArgumentCaptor<GetQueueAttributesRequest> consulta = ArgumentCaptor.forClass(GetQueueAttributesRequest.class);
+        verify(sqs).getQueueAttributes(consulta.capture());
+        assertThat(consulta.getValue().queueUrl()).isEqualTo(COLA);
     }
 }

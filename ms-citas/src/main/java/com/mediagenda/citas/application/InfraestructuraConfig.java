@@ -8,6 +8,7 @@ import com.mediagenda.citas.domain.model.gateway.TriageGateway;
 import com.mediagenda.citas.domain.usecase.ProcesarTriageUseCase;
 import com.mediagenda.citas.infrastructure.eventos.RabbitEventoAdapter;
 import com.mediagenda.citas.infrastructure.eventos.SqsEventoAdapter;
+import com.mediagenda.citas.infrastructure.tareas.CalentamientoAlArrancar;
 import com.mediagenda.citas.infrastructure.ia.GeminiTriageAdapter;
 import com.mediagenda.citas.infrastructure.ia.TriagePorReglasAdapter;
 import com.mediagenda.citas.infrastructure.rest_client.FestivosNagerAdapter;
@@ -27,6 +28,8 @@ import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.sqs.SqsClient;
 
 import java.time.Clock;
+import java.util.ArrayList;
+import java.util.List;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.util.concurrent.CompletableFuture;
@@ -118,5 +121,22 @@ public class InfraestructuraConfig {
         fabrica.setConnectTimeout(conectar);
         fabrica.setReadTimeout(leer);
         return RestClient.builder().requestFactory(fabrica);
+    }
+
+    /** Calentamiento al arrancar: conexiones externas + consultas propias (solo lectura). */
+    @Bean
+    public CalentamientoAlArrancar calentamiento(EventoGateway eventos, PacienteGateway pacienteGateway,
+                                                 @Value("${server.port:8082}") int puerto,
+                                                 @Value("${calentamiento.repeticiones:30}") int repeticiones) {
+        List<Runnable> conexiones = new ArrayList<>();
+        conexiones.add(() -> pacienteGateway.buscar("PAC-000000"));
+        if (eventos instanceof SqsEventoAdapter sqs) {
+            conexiones.add(sqs::precalentar);
+        }
+        SimpleClientHttpRequestFactory fabrica = new SimpleClientHttpRequestFactory();
+        fabrica.setConnectTimeout(Duration.ofSeconds(1));
+        fabrica.setReadTimeout(Duration.ofSeconds(5));
+        RestClient propio = RestClient.builder().requestFactory(fabrica).baseUrl("http://localhost:" + puerto).build();
+        return new CalentamientoAlArrancar(propio, List.of("/api/v1/medicos?size=5", "/api/v1/franjas?size=5", "/api/v1/citas?size=5", "/api/v1/medicos/MED-0000"), repeticiones, conexiones);
     }
 }
