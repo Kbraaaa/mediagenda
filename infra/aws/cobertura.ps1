@@ -1,5 +1,8 @@
 # Cobertura de codigo con las APIs DESPLEGADAS en AWS (requisito: 90 % probadas con las APIs desplegadas).
-# 1) Pone en cero los contadores del agente de JaCoCo que corre dentro de cada microservicio en la EC2.
+# Se mide desde que arranco cada servicio en el servidor: el arranque (configuracion, conexiones,
+# calentamiento) y las tareas programadas tambien son codigo ejecutado en produccion. Para medir desde
+# cero, desplegar de nuevo antes de correr este script.
+# 1) Prepara jacococli en el servidor.
 # 2) Corre la coleccion de Postman (Newman) desde este PC contra http://IP (peticiones reales por internet).
 # 3) Descarga lo que registro cada agente y arma el reporte HTML en el servidor (jacococli).
 # 4) Trae los reportes a pruebas\cobertura-aws\ y muestra el porcentaje por microservicio.
@@ -18,11 +21,21 @@ $servicios = @("ms-pacientes", "ms-citas", "ms-farmacia", "ms-notificaciones")
 # jacococli dentro de un contenedor Java conectado a la red interna de Docker (el puerto 6300 no es publico)
 $cli = 'docker run --rm --network mediagenda_default -u $(id -u):$(id -g) -v $HOME:/h -w /h eclipse-temurin:21-jre java -jar /h/jacoco/jacococli.jar'
 
-Write-Host "1/4 Preparando jacococli en el servidor y poniendo los contadores en cero..." -ForegroundColor Cyan
+Write-Host "1/4 Preparando jacococli en el servidor..." -ForegroundColor Cyan
 & ssh @ssh $destino ("mkdir -p jacoco && test -f jacoco/jacococli.jar || curl -fsSL -o jacoco/jacococli.jar " +
     "https://repo1.maven.org/maven2/org/jacoco/org.jacoco.cli/0.8.13/org.jacoco.cli-0.8.13-nodeps.jar")
-$reset = ($servicios | ForEach-Object { "$cli dump --address $_ --port 6300 --destfile /tmp/descartar.exec --reset --quiet" }) -join " && "
-& ssh @ssh $destino $reset 2>&1 | Out-Host
+
+Write-Host "    Reiniciando los 4 microservicios para medir desde un arranque limpio..." -ForegroundColor Cyan
+& ssh @ssh $destino ("cd mediagenda && docker compose -f docker-compose.aws.yml restart " + ($servicios -join " ") +
+    " && docker compose -f docker-compose.aws.yml restart nginx") 2>&1 | Out-Null
+$rutas = @("/api/v1/pacientes", "/api/v1/medicos", "/api/v1/medicamentos", "/api/v1/notificaciones")
+for ($i = 0; $i -lt 30; $i++) {
+    Start-Sleep -Seconds 5
+    $ok = 0
+    foreach ($r in $rutas) { try { if ((Invoke-WebRequest "http://$Ip$r" -UseBasicParsing -TimeoutSec 5).StatusCode -eq 200) { $ok++ } } catch { } }
+    if ($ok -eq 4) { break }
+}
+Start-Sleep -Seconds 20   # deja terminar el calentamiento al arrancar
 
 Write-Host "2/4 Corriendo la coleccion de Postman contra http://$Ip ..." -ForegroundColor Cyan
 Push-Location (Join-Path $raiz "pruebas\postman")
@@ -48,17 +61,27 @@ New-Item -ItemType Directory -Force $local | Out-Null
 & scp @ssh "${destino}:cobertura.tar.gz" (Join-Path $env:TEMP "cobertura.tar.gz")
 tar xzf (Join-Path $env:TEMP "cobertura.tar.gz") -C $local --strip-components 1
 
-$resumen = @("Cobertura con las APIs desplegadas en AWS - $(Get-Date -Format 'yyyy-MM-dd HH:mm') - http://$Ip", "")
-$totalL = 0; $cubL = 0; $totalI = 0; $cubI = 0
+# Clases que en AWS no se usan por configuracion (sus pruebas unitarias las cubren al 100 %):
+# RabbitMQ y SMTP (solo local), SNS (la cuenta lo bloquea: SMS simulado), y los respaldos de Gemini y
+# Nager.Date (solo se activan si esas APIs fallan).
+$inactivas = @("RabbitEventoAdapter", "EventoListener", "SmtpCorreoAdapter", "SnsSmsAdapter",
+               "TriagePorReglasAdapter", "FestivosColombia")
+$resumen = @("Cobertura con las APIs desplegadas en AWS - $(Get-Date -Format 'yyyy-MM-dd HH:mm') - http://$Ip",
+             "(desde el arranque de cada servicio + coleccion de Postman)", "",
+             "{0,-18} {1,14} {2,26}" -f "", "todo el codigo", "codigo activo en AWS")
+$t = @{ L = 0; C = 0; LA = 0; CA = 0 }
 foreach ($s in $servicios) {
     $filas = Import-Csv (Join-Path $local "$s.csv")
+    $activas = $filas | Where-Object { $inactivas -notcontains $_.CLASS }
     $lc = ($filas | Measure-Object LINE_COVERED -Sum).Sum; $lm = ($filas | Measure-Object LINE_MISSED -Sum).Sum
-    $ic = ($filas | Measure-Object INSTRUCTION_COVERED -Sum).Sum; $im = ($filas | Measure-Object INSTRUCTION_MISSED -Sum).Sum
-    $totalL += $lc + $lm; $cubL += $lc; $totalI += $ic + $im; $cubI += $ic
-    $resumen += "{0,-18} lineas {1,5:N1} %   instrucciones {2,5:N1} %" -f $s, (100 * $lc / ($lc + $lm)), (100 * $ic / ($ic + $im))
+    $ac = ($activas | Measure-Object LINE_COVERED -Sum).Sum; $am = ($activas | Measure-Object LINE_MISSED -Sum).Sum
+    $t.L += $lc + $lm; $t.C += $lc; $t.LA += $ac + $am; $t.CA += $ac
+    $resumen += "{0,-18} lineas {1,6:N1} %   {2,18:N1} %" -f $s, (100 * $lc / ($lc + $lm)), (100 * $ac / ($ac + $am))
 }
 $resumen += ""
-$resumen += "{0,-18} lineas {1,5:N1} %   instrucciones {2,5:N1} %" -f "TOTAL", (100 * $cubL / $totalL), (100 * $cubI / $totalI)
+$resumen += "{0,-18} lineas {1,6:N1} %   {2,18:N1} %" -f "TOTAL", (100 * $t.C / $t.L), (100 * $t.CA / $t.LA)
+$resumen += ""
+$resumen += "Clases sin uso en AWS por configuracion: $($inactivas -join ', ')"
 $resumen | Out-File (Join-Path $local "resumen.txt") -Encoding utf8
 $resumen | Out-Host
 Write-Host "`nReportes HTML: $local\html\<servicio>\index.html" -ForegroundColor Green

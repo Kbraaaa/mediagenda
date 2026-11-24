@@ -1,6 +1,6 @@
 {
   "info": {
-    "_postman_id": "823b80fa-041f-4e06-b0dd-a58b3bed16a5",
+    "_postman_id": "e332d999-c24a-41fd-8a4b-4d6c7524410a",
     "name": "MediAgenda - pruebas de API",
     "description": "Pruebas funcionales de los 4 microservicios de MediAgenda a traves de nginx.\n\nCorrer en orden con el Collection Runner o con Newman: cada peticion guarda los codigos que usa la siguiente.\nEntornos: Local (Docker, http://localhost:8000) y AWS (EC2).\n\nCada peticion verifica ademas que la respuesta llegue en menos de 500 ms (requisito del proyecto).",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
@@ -115,6 +115,18 @@
     },
     {
       "key": "codigoManual",
+      "value": ""
+    },
+    {
+      "key": "codigoCita4",
+      "value": ""
+    },
+    {
+      "key": "codigoFallido",
+      "value": ""
+    },
+    {
+      "key": "estadoFallido",
       "value": ""
     }
   ],
@@ -1982,6 +1994,1646 @@
                 "exec": [
                   "pm.test(\"Status 404\", () => pm.response.to.have.status(404));",
                   "pm.test(\"Codigo de error NOTIFICACION_NO_ENCONTRADA\", () => pm.expect(pm.response.json().codigo).to.eql(\"NOTIFICACION_NO_ENCONTRADA\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "6. Validaciones y errores (casos borde)",
+      "description": "Cada validacion es una rama distinta del codigo: aqui se prueba que cada dato invalido se rechace con el codigo HTTP y el mensaje correctos.",
+      "item": [
+        {
+          "name": "6.1 Paciente con tarjeta de identidad (TI)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/pacientes",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipoDocumento\": \"TI\",\n  \"numeroDocumento\": \"11{{sufijo}}\",\n  \"nombres\": \"Laura Valentina\",\n  \"apellidos\": \"Gomez Rojas\",\n  \"correo\": \"ti{{sufijo}}@correo.com\",\n  \"telefono\": \"{{telefonoPaciente}}\",\n  \"fechaNacimiento\": \"1998-05-14\",\n  \"tipoSangre\": \"O+\",\n  \"alergias\": \"Penicilina\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 201\", () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6.2 Paciente con cedula de extranjeria (CE)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/pacientes",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipoDocumento\": \"CE\",\n  \"numeroDocumento\": \"12{{sufijo}}\",\n  \"nombres\": \"Laura Valentina\",\n  \"apellidos\": \"Gomez Rojas\",\n  \"correo\": \"ce{{sufijo}}@correo.com\",\n  \"telefono\": \"{{telefonoPaciente}}\",\n  \"fechaNacimiento\": \"1998-05-14\",\n  \"tipoSangre\": \"O+\",\n  \"alergias\": \"Penicilina\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 201\", () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6.3 Paciente con pasaporte (PA)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/pacientes",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipoDocumento\": \"PA\",\n  \"numeroDocumento\": \"PA{{sufijo}}\",\n  \"nombres\": \"Laura Valentina\",\n  \"apellidos\": \"Gomez Rojas\",\n  \"correo\": \"pa{{sufijo}}@correo.com\",\n  \"telefono\": \"{{telefonoPaciente}}\",\n  \"fechaNacimiento\": \"1998-05-14\",\n  \"tipoSangre\": \"O+\",\n  \"alergias\": \"Penicilina\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 201\", () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6.4 Telefono invalido -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/pacientes",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipoDocumento\": \"CC\",\n  \"numeroDocumento\": \"30{{sufijo}}\",\n  \"nombres\": \"Laura Valentina\",\n  \"apellidos\": \"Gomez Rojas\",\n  \"correo\": \"borde{{sufijo}}@correo.com\",\n  \"telefono\": \"12\",\n  \"fechaNacimiento\": \"1998-05-14\",\n  \"tipoSangre\": \"O+\",\n  \"alergias\": \"Penicilina\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Codigo de error PETICION_INVALIDA\", () => pm.expect(pm.response.json().codigo).to.eql(\"PETICION_INVALIDA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6.5 Tipo de sangre invalido -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/pacientes",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipoDocumento\": \"CC\",\n  \"numeroDocumento\": \"30{{sufijo}}\",\n  \"nombres\": \"Laura Valentina\",\n  \"apellidos\": \"Gomez Rojas\",\n  \"correo\": \"borde{{sufijo}}@correo.com\",\n  \"telefono\": \"{{telefonoPaciente}}\",\n  \"fechaNacimiento\": \"1998-05-14\",\n  \"tipoSangre\": \"X+\",\n  \"alergias\": \"Penicilina\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Codigo de error PETICION_INVALIDA\", () => pm.expect(pm.response.json().codigo).to.eql(\"PETICION_INVALIDA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6.6 Nacimiento en el futuro -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/pacientes",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipoDocumento\": \"CC\",\n  \"numeroDocumento\": \"30{{sufijo}}\",\n  \"nombres\": \"Laura Valentina\",\n  \"apellidos\": \"Gomez Rojas\",\n  \"correo\": \"borde{{sufijo}}@correo.com\",\n  \"telefono\": \"{{telefonoPaciente}}\",\n  \"fechaNacimiento\": \"2999-01-01\",\n  \"tipoSangre\": \"O+\",\n  \"alergias\": \"Penicilina\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Codigo de error PETICION_INVALIDA\", () => pm.expect(pm.response.json().codigo).to.eql(\"PETICION_INVALIDA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6.7 Nacimiento imposible (1800) -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/pacientes",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipoDocumento\": \"CC\",\n  \"numeroDocumento\": \"30{{sufijo}}\",\n  \"nombres\": \"Laura Valentina\",\n  \"apellidos\": \"Gomez Rojas\",\n  \"correo\": \"borde{{sufijo}}@correo.com\",\n  \"telefono\": \"{{telefonoPaciente}}\",\n  \"fechaNacimiento\": \"1800-01-01\",\n  \"tipoSangre\": \"O+\",\n  \"alergias\": \"Penicilina\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Codigo de error PETICION_INVALIDA\", () => pm.expect(pm.response.json().codigo).to.eql(\"PETICION_INVALIDA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6.8 Nombres vacios -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/pacientes",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipoDocumento\": \"CC\",\n  \"numeroDocumento\": \"30{{sufijo}}\",\n  \"nombres\": \"\",\n  \"apellidos\": \"Gomez Rojas\",\n  \"correo\": \"borde{{sufijo}}@correo.com\",\n  \"telefono\": \"{{telefonoPaciente}}\",\n  \"fechaNacimiento\": \"1998-05-14\",\n  \"tipoSangre\": \"O+\",\n  \"alergias\": \"Penicilina\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Codigo de error PETICION_INVALIDA\", () => pm.expect(pm.response.json().codigo).to.eql(\"PETICION_INVALIDA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6.9 Correo sin arroba -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/pacientes",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipoDocumento\": \"CC\",\n  \"numeroDocumento\": \"30{{sufijo}}\",\n  \"nombres\": \"Laura Valentina\",\n  \"apellidos\": \"Gomez Rojas\",\n  \"correo\": \"sin-arroba\",\n  \"telefono\": \"{{telefonoPaciente}}\",\n  \"fechaNacimiento\": \"1998-05-14\",\n  \"tipoSangre\": \"O+\",\n  \"alergias\": \"Penicilina\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Codigo de error PETICION_INVALIDA\", () => pm.expect(pm.response.json().codigo).to.eql(\"PETICION_INVALIDA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6.10 Paciente con JSON malformado -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/pacientes",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"esto no es\": json valido",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Codigo de error PETICION_INVALIDA\", () => pm.expect(pm.response.json().codigo).to.eql(\"PETICION_INVALIDA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6.11 Actualizar paciente inactivo -> 409",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/pacientes/{{codigoTemporal}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipoDocumento\": \"CC\",\n  \"numeroDocumento\": \"20{{sufijo}}\",\n  \"nombres\": \"Laura Valentina\",\n  \"apellidos\": \"Gomez Rojas\",\n  \"correo\": \"{{correoTemporal}}\",\n  \"telefono\": \"{{telefonoPaciente}}\",\n  \"fechaNacimiento\": \"1998-05-14\",\n  \"tipoSangre\": \"O+\",\n  \"alergias\": \"Penicilina\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"Codigo de error PACIENTE_INACTIVO\", () => pm.expect(pm.response.json().codigo).to.eql(\"PACIENTE_INACTIVO\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6.12 Actualizar cambiando el documento -> 400",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/pacientes/{{codigoPaciente}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipoDocumento\": \"CC\",\n  \"numeroDocumento\": \"99{{sufijo}}\",\n  \"nombres\": \"Laura Valentina\",\n  \"apellidos\": \"Gomez Rojas\",\n  \"correo\": \"{{correoPaciente}}\",\n  \"telefono\": \"{{telefonoPaciente}}\",\n  \"fechaNacimiento\": \"1998-05-14\",\n  \"tipoSangre\": \"O+\",\n  \"alergias\": \"Penicilina\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Codigo de error PETICION_INVALIDA\", () => pm.expect(pm.response.json().codigo).to.eql(\"PETICION_INVALIDA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6.13 Actualizar paciente inexistente -> 404",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/pacientes/PAC-999999",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipoDocumento\": \"CC\",\n  \"numeroDocumento\": \"10{{sufijo}}\",\n  \"nombres\": \"Laura Valentina\",\n  \"apellidos\": \"Gomez Rojas\",\n  \"correo\": \"{{correoPaciente}}\",\n  \"telefono\": \"{{telefonoPaciente}}\",\n  \"fechaNacimiento\": \"1998-05-14\",\n  \"tipoSangre\": \"O+\",\n  \"alergias\": \"Penicilina\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Codigo de error PACIENTE_NO_ENCONTRADO\", () => pm.expect(pm.response.json().codigo).to.eql(\"PACIENTE_NO_ENCONTRADO\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6.14 Desactivar paciente inexistente -> 404",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/pacientes/PAC-999999"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Codigo de error PACIENTE_NO_ENCONTRADO\", () => pm.expect(pm.response.json().codigo).to.eql(\"PACIENTE_NO_ENCONTRADO\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6.15 Pagina negativa -> 400",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/pacientes?page=-1"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Codigo de error PETICION_INVALIDA\", () => pm.expect(pm.response.json().codigo).to.eql(\"PETICION_INVALIDA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6.16 Medico con especialidad en minusculas",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/medicos",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Pedro Ruiz\",\n  \"especialidad\": \"pediatria\",\n  \"correo\": \"pedro{{sufijo}}@mediagenda.co\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 201\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"Se normaliza a PEDIATRIA\", () => pm.expect(pm.response.json().especialidad).to.eql(\"PEDIATRIA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6.17 Medico con correo invalido -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/medicos",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Sin Correo\",\n  \"especialidad\": \"CARDIOLOGIA\",\n  \"correo\": \"no-es-correo\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Codigo de error PETICION_INVALIDA\", () => pm.expect(pm.response.json().codigo).to.eql(\"PETICION_INVALIDA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6.18 Medico inexistente -> 404",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/medicos/MED-9999"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Codigo de error MEDICO_NO_ENCONTRADO\", () => pm.expect(pm.response.json().codigo).to.eql(\"MEDICO_NO_ENCONTRADO\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6.19 Agenda de medico inexistente -> 404",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/medicos/MED-9999/franjas",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fecha\": \"{{fechaAgenda}}\",\n  \"horaInicio\": \"08:00\",\n  \"horaFin\": \"09:00\",\n  \"duracionMinutos\": 30\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Codigo de error MEDICO_NO_ENCONTRADO\", () => pm.expect(pm.response.json().codigo).to.eql(\"MEDICO_NO_ENCONTRADO\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6.20 Agenda en fecha pasada -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/medicos/{{codigoMedico}}/franjas",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fecha\": \"2020-01-06\",\n  \"horaInicio\": \"08:00\",\n  \"horaFin\": \"09:00\",\n  \"duracionMinutos\": 30\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Codigo de error PETICION_INVALIDA\", () => pm.expect(pm.response.json().codigo).to.eql(\"PETICION_INVALIDA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6.21 Agenda con fin antes del inicio -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/medicos/{{codigoMedico}}/franjas",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fecha\": \"{{fechaAgenda}}\",\n  \"horaInicio\": \"15:00\",\n  \"horaFin\": \"14:00\",\n  \"duracionMinutos\": 30\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Codigo de error PETICION_INVALIDA\", () => pm.expect(pm.response.json().codigo).to.eql(\"PETICION_INVALIDA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6.22 Fecha con formato invalido -> 400",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/franjas?fecha=ayer"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Codigo de error PETICION_INVALIDA\", () => pm.expect(pm.response.json().codigo).to.eql(\"PETICION_INVALIDA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6.23 Agendar franja inexistente -> 404",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/citas",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigoPaciente\": \"{{codigoPaciente}}\",\n  \"idFranja\": 999999999,\n  \"sintomas\": \"Dolor de cabeza\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Codigo de error FRANJA_NO_ENCONTRADA\", () => pm.expect(pm.response.json().codigo).to.eql(\"FRANJA_NO_ENCONTRADA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6.24 Agendar sin sintomas -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/citas",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigoPaciente\": \"{{codigoPaciente}}\",\n  \"idFranja\": \"{{idFranja4}}\",\n  \"sintomas\": \" \"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Codigo de error PETICION_INVALIDA\", () => pm.expect(pm.response.json().codigo).to.eql(\"PETICION_INVALIDA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6.25 Reprogramar cita atendida -> 409",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/citas/{{codigoCita}}/reprogramacion",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idFranja\": \"{{idFranja4}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"Codigo de error CITA_NO_AGENDADA\", () => pm.expect(pm.response.json().codigo).to.eql(\"CITA_NO_AGENDADA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6.26 Atender cita cancelada -> 409",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/citas/{{codigoCita2}}/atencion"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"Codigo de error CITA_NO_AGENDADA\", () => pm.expect(pm.response.json().codigo).to.eql(\"CITA_NO_AGENDADA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6.27 Reprogramar cita inexistente -> 404",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/citas/CIT-2000-999999/reprogramacion",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idFranja\": \"{{idFranja4}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Codigo de error CITA_NO_ENCONTRADA\", () => pm.expect(pm.response.json().codigo).to.eql(\"CITA_NO_ENCONTRADA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6.28 Formula sin medicamentos -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/formulas",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigoCita\": \"{{codigoCita3}}\",\n  \"items\": []\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Codigo de error PETICION_INVALIDA\", () => pm.expect(pm.response.json().codigo).to.eql(\"PETICION_INVALIDA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6.29 Formula con 11 medicamentos -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/formulas",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigoCita\": \"{{codigoCita3}}\",\n  \"items\": [\n    {\n      \"codigoMedicamento\": \"MDT-0001\",\n      \"cantidad\": 1\n    },\n    {\n      \"codigoMedicamento\": \"MDT-0002\",\n      \"cantidad\": 1\n    },\n    {\n      \"codigoMedicamento\": \"MDT-0003\",\n      \"cantidad\": 1\n    },\n    {\n      \"codigoMedicamento\": \"MDT-0004\",\n      \"cantidad\": 1\n    },\n    {\n      \"codigoMedicamento\": \"MDT-0005\",\n      \"cantidad\": 1\n    },\n    {\n      \"codigoMedicamento\": \"MDT-0006\",\n      \"cantidad\": 1\n    },\n    {\n      \"codigoMedicamento\": \"MDT-0007\",\n      \"cantidad\": 1\n    },\n    {\n      \"codigoMedicamento\": \"MDT-0008\",\n      \"cantidad\": 1\n    },\n    {\n      \"codigoMedicamento\": \"MDT-0009\",\n      \"cantidad\": 1\n    },\n    {\n      \"codigoMedicamento\": \"MDT-0010\",\n      \"cantidad\": 1\n    },\n    {\n      \"codigoMedicamento\": \"MDT-0011\",\n      \"cantidad\": 1\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Codigo de error PETICION_INVALIDA\", () => pm.expect(pm.response.json().codigo).to.eql(\"PETICION_INVALIDA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6.30 Formula con cantidad 0 -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/formulas",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigoCita\": \"{{codigoCita3}}\",\n  \"items\": [\n    {\n      \"codigoMedicamento\": \"MDT-0001\",\n      \"cantidad\": 0\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Codigo de error PETICION_INVALIDA\", () => pm.expect(pm.response.json().codigo).to.eql(\"PETICION_INVALIDA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6.31 Formula con medicamento repetido -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/formulas",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigoCita\": \"{{codigoCita3}}\",\n  \"items\": [\n    {\n      \"codigoMedicamento\": \"MDT-0001\",\n      \"cantidad\": 1\n    },\n    {\n      \"codigoMedicamento\": \"mdt-0001\",\n      \"cantidad\": 2\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Codigo de error PETICION_INVALIDA\", () => pm.expect(pm.response.json().codigo).to.eql(\"PETICION_INVALIDA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6.32 Formula para cita inexistente -> 404",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/formulas",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigoCita\": \"CIT-2000-999999\",\n  \"items\": [\n    {\n      \"codigoMedicamento\": \"MDT-0001\",\n      \"cantidad\": 1\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Codigo de error CITA_NO_ENCONTRADA\", () => pm.expect(pm.response.json().codigo).to.eql(\"CITA_NO_ENCONTRADA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6.33 Anular la formula sin stock",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/formulas/{{codigoFormula3}}/anulacion"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Queda ANULADA\", () => pm.expect(pm.response.json().estado).to.eql(\"ANULADA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6.34 Formula con medicamento inexistente -> 404",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/formulas",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigoCita\": \"{{codigoCita3}}\",\n  \"items\": [\n    {\n      \"codigoMedicamento\": \"MDT-9999\",\n      \"cantidad\": 1\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Codigo de error MEDICAMENTO_NO_ENCONTRADO\", () => pm.expect(pm.response.json().codigo).to.eql(\"MEDICAMENTO_NO_ENCONTRADO\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6.35 Reabastecer medicamento inexistente -> 404",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/medicamentos/MDT-9999/stock",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cantidad\": 5\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Codigo de error MEDICAMENTO_NO_ENCONTRADO\", () => pm.expect(pm.response.json().codigo).to.eql(\"MEDICAMENTO_NO_ENCONTRADO\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6.36 Dispensar formula inexistente -> 404",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/formulas/FOR-2000-999999/dispensacion"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Codigo de error FORMULA_NO_ENCONTRADA\", () => pm.expect(pm.response.json().codigo).to.eql(\"FORMULA_NO_ENCONTRADA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6.37 Medicamento sin nombre -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/medicamentos",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \" \",\n  \"presentacion\": \"Jarabe\",\n  \"stock\": 5\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Codigo de error PETICION_INVALIDA\", () => pm.expect(pm.response.json().codigo).to.eql(\"PETICION_INVALIDA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6.38 Marcar leido aviso inexistente -> 404",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/notificaciones/NOT-2000-999999/lectura"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Codigo de error NOTIFICACION_NO_ENCONTRADA\", () => pm.expect(pm.response.json().codigo).to.eql(\"NOTIFICACION_NO_ENCONTRADA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6.39 Reintentar aviso inexistente -> 404",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/notificaciones/NOT-2000-999999/reintento"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Codigo de error NOTIFICACION_NO_ENCONTRADA\", () => pm.expect(pm.response.json().codigo).to.eql(\"NOTIFICACION_NO_ENCONTRADA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6.40 Aviso manual sin asunto -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/notificaciones",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"destinatario\": \"{{correoPaciente}}\",\n  \"asunto\": \" \",\n  \"cuerpo\": \"Hola\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Codigo de error PETICION_INVALIDA\", () => pm.expect(pm.response.json().codigo).to.eql(\"PETICION_INVALIDA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6.41 Aviso con JSON malformado -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/notificaciones",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"esto no es\": json valido",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Codigo de error PETICION_INVALIDA\", () => pm.expect(pm.response.json().codigo).to.eql(\"PETICION_INVALIDA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6.42 Avisos con pagina negativa -> 400",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/notificaciones?page=-1"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Codigo de error PETICION_INVALIDA\", () => pm.expect(pm.response.json().codigo).to.eql(\"PETICION_INVALIDA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6.43 Documento demasiado corto -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/pacientes",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipoDocumento\": \"CC\",\n  \"numeroDocumento\": \"12\",\n  \"nombres\": \"Laura Valentina\",\n  \"apellidos\": \"Gomez Rojas\",\n  \"correo\": \"borde{{sufijo}}@correo.com\",\n  \"telefono\": \"{{telefonoPaciente}}\",\n  \"fechaNacimiento\": \"1998-05-14\",\n  \"tipoSangre\": \"O+\",\n  \"alergias\": \"Penicilina\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Codigo de error PETICION_INVALIDA\", () => pm.expect(pm.response.json().codigo).to.eql(\"PETICION_INVALIDA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6.44 Sin fecha de nacimiento -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/pacientes",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipoDocumento\": \"CC\",\n  \"numeroDocumento\": \"30{{sufijo}}\",\n  \"nombres\": \"Laura Valentina\",\n  \"apellidos\": \"Gomez Rojas\",\n  \"correo\": \"borde{{sufijo}}@correo.com\",\n  \"telefono\": \"{{telefonoPaciente}}\",\n  \"fechaNacimiento\": null,\n  \"tipoSangre\": \"O+\",\n  \"alergias\": \"Penicilina\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Codigo de error PETICION_INVALIDA\", () => pm.expect(pm.response.json().codigo).to.eql(\"PETICION_INVALIDA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6.45 Alergias demasiado largas -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/pacientes",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipoDocumento\": \"CC\",\n  \"numeroDocumento\": \"30{{sufijo}}\",\n  \"nombres\": \"Laura Valentina\",\n  \"apellidos\": \"Gomez Rojas\",\n  \"correo\": \"borde{{sufijo}}@correo.com\",\n  \"telefono\": \"{{telefonoPaciente}}\",\n  \"fechaNacimiento\": \"1998-05-14\",\n  \"tipoSangre\": \"O+\",\n  \"alergias\": \"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Codigo de error PETICION_INVALIDA\", () => pm.expect(pm.response.json().codigo).to.eql(\"PETICION_INVALIDA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6.46 Agendar cita para reprogramar",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/citas",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigoPaciente\": \"{{codigoPaciente}}\",\n  \"idFranja\": \"{{idFranja4}}\",\n  \"sintomas\": \"Revision de examenes\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 201\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"codigoCita4\", pm.response.json().codigo);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6.47 Reprogramar a una franja ocupada -> 409",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/citas/{{codigoCita4}}/reprogramacion",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idFranja\": \"{{idFranja1}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"Codigo de error FRANJA_OCUPADA\", () => pm.expect(pm.response.json().codigo).to.eql(\"FRANJA_OCUPADA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6.48 Reprogramar a franja inexistente -> 404",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/citas/{{codigoCita4}}/reprogramacion",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idFranja\": 999999999\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Codigo de error FRANJA_NO_ENCONTRADA\", () => pm.expect(pm.response.json().codigo).to.eql(\"FRANJA_NO_ENCONTRADA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6.49 Cancelar la cita de prueba",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/citas/{{codigoCita4}}/cancelacion"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6.50 Aviso a un correo que el servidor rechaza",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/notificaciones",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"destinatario\": \"{{correoRechazado}}\",\n  \"asunto\": \"Prueba de reintento\",\n  \"cuerpo\": \"Este correo debe fallar en el servidor\",\n  \"codigoPaciente\": \"{{codigoPaciente}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 202\", () => pm.response.to.have.status(202));",
+                  "pm.collectionVariables.set(\"codigoFallido\", pm.response.json().codigo);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6.51 El aviso rechazado queda FALLIDA con el error",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/notificaciones/{{codigoFallido}}"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "setTimeout(() => {}, 2500);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const a = pm.response.json();",
+                  "pm.collectionVariables.set(\"estadoFallido\", a.estado);",
+                  "if (pm.environment.get(\"baseUrl\").indexOf(\"localhost\") < 0) {",
+                  "  pm.test(\"Queda FALLIDA y guarda el motivo\", () => { pm.expect(a.estado).to.eql(\"FALLIDA\"); pm.expect(a.ultimoError).to.be.a(\"string\").and.not.empty; });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6.52 Reintentar el aviso fallido",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/notificaciones/{{codigoFallido}}/reintento"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// En AWS (SES en modo de prueba rechaza correos no verificados) se acepta el reintento (202).",
+                  "// En local Mailpit acepta todo: el aviso quedo ENVIADA y el reintento responde 409.",
+                  "if (pm.collectionVariables.get(\"estadoFallido\") === \"FALLIDA\") {",
+                  "  pm.test(\"Reintento aceptado (202)\", () => pm.response.to.have.status(202));",
+                  "  pm.test(\"Vuelve a PENDIENTE para enviarse de nuevo\", () => pm.expect([\"PENDIENTE\", \"FALLIDA\", \"ENVIADA\"]).to.include(pm.response.json().estado));",
+                  "} else {",
+                  "  pm.test(\"Aviso ya enviado: no se reintenta (409)\", () => pm.response.to.have.status(409));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6.53 Marcar leido un aviso no enviado -> 409",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/notificaciones/{{codigoFallido}}/lectura"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "setTimeout(() => {}, 2500);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.collectionVariables.get(\"estadoFallido\") === \"FALLIDA\") {",
+                  "  pm.test(\"Status 409\", () => pm.response.to.have.status(409));",
+                  "  pm.test(\"Codigo de error NOTIFICACION_NO_ENVIADA\", () => pm.expect(pm.response.json().codigo).to.eql(\"NOTIFICACION_NO_ENVIADA\"));",
+                  "} else {",
+                  "  pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "}"
                 ]
               }
             }
