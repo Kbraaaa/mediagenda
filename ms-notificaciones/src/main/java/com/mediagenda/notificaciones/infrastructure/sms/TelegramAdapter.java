@@ -37,7 +37,9 @@ public class TelegramAdapter implements SmsGateway {
         String texto = "📱 Aviso para " + SmsSimuladoAdapter.enmascarar(telefonoE164) + "\n" + mensaje;
         try {
             Respuesta r = telegram.post()
-                    .uri("/bot{token}/sendMessage", token)
+                    // El token va tal cual en la ruta: como variable de plantilla, Spring codificaria
+                    // sus ":" como %3A y Telegram no reconoceria el bot (lo detecto la prueba unitaria)
+                    .uri("/bot" + token + "/sendMessage")
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(Map.of("chat_id", chatId, "text", texto))
                     .retrieve()
