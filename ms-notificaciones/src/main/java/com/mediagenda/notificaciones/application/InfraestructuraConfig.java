@@ -11,6 +11,7 @@ import com.mediagenda.notificaciones.infrastructure.eventos.EventoListener;
 import com.mediagenda.notificaciones.infrastructure.eventos.SqsEventoConsumidor;
 import com.mediagenda.notificaciones.infrastructure.sms.SmsSimuladoAdapter;
 import com.mediagenda.notificaciones.infrastructure.sms.SnsSmsAdapter;
+import com.mediagenda.notificaciones.infrastructure.sms.TelegramAdapter;
 import com.mediagenda.notificaciones.infrastructure.tareas.SolicitudEnvioAsincrona;
 import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.BindingBuilder;
@@ -21,16 +22,19 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
+import org.springframework.web.client.RestClient;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.sesv2.SesV2Client;
 import software.amazon.awssdk.services.sns.SnsClient;
 import software.amazon.awssdk.services.sqs.SqsClient;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.ZoneId;
 
 /**
@@ -86,12 +90,22 @@ public class InfraestructuraConfig {
         return new EventoListener(procesarEvento);
     }
 
-    /** AWS: Amazon SNS. Local (o "ninguno"): simulado en el log. */
+    /** sns: Amazon SNS. telegram: bot de Telegram (canal movil real). simulado o ninguno: en el log. */
     @Bean
     public SmsGateway smsGateway(@Value("${notificaciones.sms:simulado}") String proveedor,
-                                 @Value("${aws.region:us-east-2}") String region) {
+                                 @Value("${aws.region:us-east-2}") String region,
+                                 @Value("${telegram.url:https://api.telegram.org}") String telegramUrl,
+                                 @Value("${telegram.token:}") String telegramToken,
+                                 @Value("${telegram.chat-id:}") String telegramChat) {
         if ("sns".equalsIgnoreCase(proveedor)) {
             return new SnsSmsAdapter(SnsClient.builder().region(Region.of(region)).build());
+        }
+        if ("telegram".equalsIgnoreCase(proveedor) && !telegramToken.isBlank() && !telegramChat.isBlank()) {
+            SimpleClientHttpRequestFactory fabrica = new SimpleClientHttpRequestFactory();
+            fabrica.setConnectTimeout(Duration.ofSeconds(3));
+            fabrica.setReadTimeout(Duration.ofSeconds(10));
+            return new TelegramAdapter(RestClient.builder().requestFactory(fabrica), telegramUrl,
+                    telegramToken.trim(), telegramChat.trim());
         }
         return new SmsSimuladoAdapter();
     }

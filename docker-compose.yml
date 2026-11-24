@@ -110,6 +110,10 @@ services:
       SMTP_AUTH: ${SMTP_AUTH:-false}
       SMTP_TLS: ${SMTP_TLS:-false}
       CORREO_REMITENTE: ${CORREO_REMITENTE:-no-responder@mediagenda.co}
+      # Aviso al celular: simulado (log) o telegram (ver configurar-telegram.bat)
+      SMS: ${SMS:-simulado}
+      TELEGRAM_TOKEN: ${TELEGRAM_TOKEN:-}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
     depends_on:
       postgres:
         condition: service_healthy

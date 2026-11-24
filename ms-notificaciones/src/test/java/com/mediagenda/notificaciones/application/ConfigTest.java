@@ -58,9 +58,17 @@ class ConfigTest {
         assertThat(enlace.getRoutingKey()).isEqualTo("#");
         assertThat(c.eventoListener(mock(ProcesarEventoUseCase.class))).isNotNull();
         assertThat(c.correoExecutor().getMaxPoolSize()).isEqualTo(4);
-        assertThat(c.smsGateway("sns", "us-east-1"))
+        String api = "https://api.telegram.org";
+        assertThat(c.smsGateway("sns", "us-east-1", api, "", ""))
                 .isInstanceOf(com.mediagenda.notificaciones.infrastructure.sms.SnsSmsAdapter.class);
-        assertThat(c.smsGateway("simulado", "us-east-1"))
+        assertThat(c.smsGateway("simulado", "us-east-1", api, "", ""))
+                .isInstanceOf(com.mediagenda.notificaciones.infrastructure.sms.SmsSimuladoAdapter.class);
+        assertThat(c.smsGateway("TELEGRAM", "us-east-1", api, " 123:abc ", " 999 "))
+                .isInstanceOf(com.mediagenda.notificaciones.infrastructure.sms.TelegramAdapter.class);
+        // Telegram sin token o sin chat no se puede usar: se queda en simulado
+        assertThat(c.smsGateway("telegram", "us-east-1", api, "", "999"))
+                .isInstanceOf(com.mediagenda.notificaciones.infrastructure.sms.SmsSimuladoAdapter.class);
+        assertThat(c.smsGateway("telegram", "us-east-1", api, "123:abc", " "))
                 .isInstanceOf(com.mediagenda.notificaciones.infrastructure.sms.SmsSimuladoAdapter.class);
         assertThat(c.solicitudEnvioGateway(mock(EnviarPendienteUseCase.class))).isNotNull();
     }

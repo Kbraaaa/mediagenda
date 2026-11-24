@@ -1,4 +1,6 @@
 #!/bin/bash
+# Nota: desde 2026 GitHub identifica el repositorio con IDs fijos en el claim "sub":
+# repo:Kbraaaa@134634912/mediagenda@1469382444:ref:refs/heads/main (formato nuevo). La regla acepta ese y el antiguo.
 # Configura AWS para el despliegue automatico desde GitHub Actions. Se corre UNA vez en AWS CloudShell.
 # Crea: 4 repositorios de imagenes en ECR, el proveedor OIDC de GitHub, el rol que GitHub puede asumir
 # (solo desde Kbraaaa/mediagenda, rama main) y le da a la EC2 permiso para descargar de ECR y recibir
@@ -32,7 +34,7 @@ cat > /tmp/confianza.json <<JSON
 {"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Federated":"$PROVEEDOR"},
  "Action":"sts:AssumeRoleWithWebIdentity","Condition":{
   "StringEquals":{"token.actions.githubusercontent.com:aud":"sts.amazonaws.com"},
-  "StringLike":{"token.actions.githubusercontent.com:sub":"repo:$REPO_GITHUB:ref:refs/heads/main"}}}]}
+  "StringLike":{"token.actions.githubusercontent.com:sub":["repo:Kbraaaa@134634912/mediagenda@1469382444:*","repo:$REPO_GITHUB:*"]}}}]}
 JSON
 aws iam get-role --role-name $ROL_GITHUB >/dev/null 2>&1 ||
   aws iam create-role --role-name $ROL_GITHUB --assume-role-policy-document file:///tmp/confianza.json >/dev/null
