@@ -1,0 +1,7 @@
+Prueba: carga
+Peticiones: 51012 (221.0 por segundo)
+Tiempo de respuesta: promedio 10 ms, mediana 5 ms, p90 23 ms, p95 34 ms, maximo 175 ms
+Errores HTTP inesperados: 0.00 %
+Usuarios virtuales maximos: 30
+Umbral http_req_duration p(95)<500: CUMPLE
+Umbral http_req_failed rate<0.01: CUMPLE

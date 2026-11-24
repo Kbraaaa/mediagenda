@@ -1,0 +1,7 @@
+﻿NAME                             CPU %     MEM USAGE / LIMIT
+mediagenda-ms-farmacia-1         0.11%     421.2MiB / 7.597GiB
+mediagenda-ms-citas-1            0.15%     511.4MiB / 7.597GiB
+mediagenda-nginx-1               0.00%     2.125MiB / 7.597GiB
+mediagenda-ms-pacientes-1        0.09%     370.4MiB / 7.597GiB
+mediagenda-ms-notificaciones-1   0.11%     403.5MiB / 7.597GiB
+mediagenda-postgres-1            0.04%     152.6MiB / 7.597GiB

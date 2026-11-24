@@ -41,3 +41,5 @@ region.zip
 sms-aws.zip
 desplegar.zip
 k6.zip
+cobertura.zip
+pruebas/cobertura-aws/

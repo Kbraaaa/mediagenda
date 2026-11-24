@@ -68,6 +68,9 @@ if ($LASTEXITCODE -ne 0) { Anotar "FALLO el servidor no responde o Docker no ter
 & scp @ssh $envServidor "${destino}:mediagenda.env"
 $remoto = "mkdir -p mediagenda && tar xzf mediagenda.tar.gz -C mediagenda && cp mediagenda.env mediagenda/.env && " +
           "cd mediagenda && docker compose -f docker-compose.aws.yml up -d --build 2>&1 | tail -20 && " +
+          # nginx resuelve las direcciones de los servicios solo al arrancar: si un contenedor se recreo,
+          # tiene otra IP interna y nginx devolveria 502. Reiniciarlo le hace buscar las direcciones nuevas.
+          "docker compose -f docker-compose.aws.yml restart nginx && " +
           "docker compose -f docker-compose.aws.yml ps"
 Anotar "Compilando y arrancando en el servidor (5 a 10 minutos la primera vez)..."
 & ssh @ssh $destino $remoto 2>&1 | Tee-Object -Variable log | Out-Host

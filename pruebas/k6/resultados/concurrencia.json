@@ -1,0 +1,306 @@
+{
+  "root_group": {
+    "name": "",
+    "path": "",
+    "id": "d41d8cd98f00b204e9800998ecf8427e",
+    "groups": [],
+    "checks": [
+      {
+        "id": "0a4919288d4e7c45ad4b0cf918f2f08f",
+        "passes": 50,
+        "fails": 0,
+        "name": "201 o 409",
+        "path": "::201 o 409"
+      }
+    ]
+  },
+  "options": {
+    "summaryTrendStats": [
+      "avg",
+      "min",
+      "med",
+      "max",
+      "p(90)",
+      "p(95)"
+    ],
+    "summaryTimeUnit": "",
+    "noColor": false
+  },
+  "state": {
+    "isStdOutTTY": false,
+    "isStdErrTTY": false,
+    "testRunDurationMs": 1440.295564
+  },
+  "metrics": {
+    "vus_max": {
+      "values": {
+        "value": 50,
+        "min": 50,
+        "max": 50
+      },
+      "type": "gauge",
+      "contains": "default"
+    },
+    "http_req_duration{expected_response:true}": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "avg": 26.726085075471698,
+        "min": 7.731959,
+        "med": 12.157551,
+        "max": 577.803135,
+        "p(90)": 17.557527800000003,
+        "p(95)": 54.7252343999999
+      }
+    },
+    "http_req_connecting": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "min": 0,
+        "med": 0.0180015,
+        "max": 7.969099,
+        "p(90)": 4.019993600000002,
+        "p(95)": 5.997382499999999,
+        "avg": 1.2178667745098044
+      }
+    },
+    "checks": {
+      "type": "rate",
+      "contains": "default",
+      "values": {
+        "rate": 1,
+        "passes": 50,
+        "fails": 0
+      }
+    },
+    "iterations": {
+      "type": "counter",
+      "contains": "default",
+      "values": {
+        "count": 50,
+        "rate": 34.715096852162496
+      }
+    },
+    "http_req_failed": {
+      "type": "rate",
+      "contains": "default",
+      "values": {
+        "fails": 53,
+        "rate": 0.4803921568627451,
+        "passes": 49
+      }
+    },
+    "citas_rechazadas_409": {
+      "type": "counter",
+      "contains": "default",
+      "values": {
+        "count": 49,
+        "rate": 34.02079491511925
+      },
+      "thresholds": {
+        "count==49": {
+          "ok": true
+        }
+      }
+    },
+    "respuestas_inesperadas": {
+      "type": "counter",
+      "contains": "default",
+      "values": {
+        "count": 0,
+        "rate": 0
+      },
+      "thresholds": {
+        "count==0": {
+          "ok": true
+        }
+      }
+    },
+    "iteration_duration": {
+      "values": {
+        "min": 296.589717,
+        "med": 420.7842855,
+        "max": 584.204746,
+        "p(90)": 484.5300141,
+        "p(95)": 486.0710504,
+        "avg": 411.73961017999994
+      },
+      "type": "trend",
+      "contains": "time"
+    },
+    "http_req_tls_handshaking": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "avg": 0,
+        "min": 0,
+        "med": 0,
+        "max": 0,
+        "p(90)": 0,
+        "p(95)": 0
+      }
+    },
+    "data_sent": {
+      "values": {
+        "count": 27515,
+        "rate": 19103.71779774502
+      },
+      "type": "counter",
+      "contains": "data"
+    },
+    "http_req_sending": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "max": 0.921396,
+        "p(90)": 0.8387629,
+        "p(95)": 0.8971303999999999,
+        "avg": 0.31100707843137265,
+        "min": 0.015273,
+        "med": 0.0338785
+      }
+    },
+    "vus": {
+      "type": "gauge",
+      "contains": "default",
+      "values": {
+        "value": 50,
+        "min": 50,
+        "max": 50
+      }
+    },
+    "http_reqs": {
+      "values": {
+        "count": 102,
+        "rate": 70.81879757841149
+      },
+      "type": "counter",
+      "contains": "default"
+    },
+    "http_req_duration": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "avg": 208.6696977843137,
+        "min": 7.731959,
+        "med": 106.240625,
+        "max": 577.803135,
+        "p(90)": 466.53214640000004,
+        "p(95)": 482.27496990000003
+      }
+    },
+    "http_req_waiting": {
+      "contains": "time",
+      "values": {
+        "p(90)": 465.759725,
+        "p(95)": 481.5727999,
+        "avg": 208.25189100000003,
+        "min": 7.559904,
+        "med": 106.05408249999999,
+        "max": 576.77097
+      },
+      "type": "trend"
+    },
+    "citas_ganadas": {
+      "thresholds": {
+        "count==1": {
+          "ok": true
+        }
+      },
+      "type": "counter",
+      "contains": "default",
+      "values": {
+        "count": 1,
+        "rate": 0.6943019370432498
+      }
+    },
+    "http_req_blocked": {
+      "values": {
+        "min": 0.003732,
+        "med": 0.036789,
+        "max": 8.035382,
+        "p(90)": 4.046541800000002,
+        "p(95)": 6.044182449999998,
+        "avg": 1.24763712745098
+      },
+      "type": "trend",
+      "contains": "time"
+    },
+    "http_req_receiving": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "avg": 0.10679970588235295,
+        "min": 0.035179,
+        "med": 0.0888765,
+        "max": 1.132317,
+        "p(90)": 0.13060790000000003,
+        "p(95)": 0.15209784999999998
+      }
+    },
+    "data_received": {
+      "type": "counter",
+      "contains": "data",
+      "values": {
+        "count": 38127,
+        "rate": 26471.649953647986
+      }
+    }
+  },
+  "setup_data": {
+    "idFranja": 9,
+    "pacientes": [
+      "PAC-000005",
+      "PAC-000006",
+      "PAC-000007",
+      "PAC-000008",
+      "PAC-000009",
+      "PAC-000010",
+      "PAC-000011",
+      "PAC-000012",
+      "PAC-000013",
+      "PAC-000014",
+      "PAC-000015",
+      "PAC-000016",
+      "PAC-000017",
+      "PAC-000018",
+      "PAC-000019",
+      "PAC-000020",
+      "PAC-000021",
+      "PAC-000022",
+      "PAC-000023",
+      "PAC-000024",
+      "PAC-000025",
+      "PAC-000026",
+      "PAC-000027",
+      "PAC-000028",
+      "PAC-000029",
+      "PAC-000030",
+      "PAC-000031",
+      "PAC-000032",
+      "PAC-000033",
+      "PAC-000034",
+      "PAC-000035",
+      "PAC-000036",
+      "PAC-000037",
+      "PAC-000038",
+      "PAC-000039",
+      "PAC-000040",
+      "PAC-000041",
+      "PAC-000042",
+      "PAC-000043",
+      "PAC-000044",
+      "PAC-000045",
+      "PAC-000046",
+      "PAC-000047",
+      "PAC-000048",
+      "PAC-000049",
+      "PAC-000050",
+      "PAC-000051",
+      "PAC-000052",
+      "PAC-000053",
+      "PAC-000054"
+    ]
+  }
+}

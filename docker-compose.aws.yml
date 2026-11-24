@@ -12,6 +12,9 @@ x-aws: &aws
   SQS_COLA_URL: ${SQS_COLA_URL}
   DB_USER: ${DB_USER:-postgres}
   DB_PASSWORD: ${DB_PASSWORD}
+  # Cobertura sobre lo desplegado: el agente de JaCoCo escucha en el puerto 6300 SOLO dentro de la red
+  # de Docker (no se publica). cobertura-aws.bat lo lee despues de correr Postman contra la API.
+  JAVA_TOOL_OPTIONS: "${JACOCO_AGENTE:--javaagent:/opt/jacoco/jacocoagent.jar=output=tcpserver,address=*,port=6300,includes=com.mediagenda.*}"
 
 services:
   postgres:
