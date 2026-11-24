@@ -18,8 +18,11 @@ x-aws: &aws
   JAVA_TOOL_OPTIONS: "${JACOCO_AGENTE:--javaagent:/opt/jacoco/jacocoagent.jar=output=tcpserver,address=*,port=6300,includes=com.mediagenda.*}"
 
 services:
+  # Base de datos en un contenedor: solo si COMPOSE_PROFILES=postgres-local en el .env.
+  # Con Amazon RDS (DB_HOST=<endpoint de RDS>) este servicio no se levanta.
   postgres:
     image: postgres:17
+    profiles: ["postgres-local"]
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${DB_USER:-postgres}
@@ -39,10 +42,11 @@ services:
     restart: unless-stopped
     environment:
       <<: *aws
-      DB_URL: jdbc:postgresql://postgres:5432/pacientes_db
+      DB_URL: jdbc:postgresql://${DB_HOST:-postgres}:${DB_PORT:-5432}/pacientes_db
     depends_on:
       postgres:
         condition: service_healthy
+        required: false   # con Amazon RDS el contenedor postgres no se levanta
     healthcheck: &salud
       test: ["CMD-SHELL", "wget -qO- http://localhost:8081/actuator/health || exit 1"]
       interval: 10s
@@ -55,13 +59,14 @@ services:
     restart: unless-stopped
     environment:
       <<: *aws
-      DB_URL: jdbc:postgresql://postgres:5432/citas_db
+      DB_URL: jdbc:postgresql://${DB_HOST:-postgres}:${DB_PORT:-5432}/citas_db
       PACIENTES_URL: http://ms-pacientes:8081
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       GEMINI_MODELO: ${GEMINI_MODELO:-gemini-3.5-flash-lite}
     depends_on:
       postgres:
         condition: service_healthy
+        required: false   # con Amazon RDS el contenedor postgres no se levanta
     healthcheck:
       <<: *salud
       test: ["CMD-SHELL", "wget -qO- http://localhost:8082/actuator/health || exit 1"]
@@ -73,11 +78,12 @@ services:
     restart: unless-stopped
     environment:
       <<: *aws
-      DB_URL: jdbc:postgresql://postgres:5432/farmacia_db
+      DB_URL: jdbc:postgresql://${DB_HOST:-postgres}:${DB_PORT:-5432}/farmacia_db
       CITAS_URL: http://ms-citas:8082
     depends_on:
       postgres:
         condition: service_healthy
+        required: false   # con Amazon RDS el contenedor postgres no se levanta
     healthcheck:
       <<: *salud
       test: ["CMD-SHELL", "wget -qO- http://localhost:8083/actuator/health || exit 1"]
@@ -89,7 +95,7 @@ services:
     restart: unless-stopped
     environment:
       <<: *aws
-      DB_URL: jdbc:postgresql://postgres:5432/notificaciones_db
+      DB_URL: jdbc:postgresql://${DB_HOST:-postgres}:${DB_PORT:-5432}/notificaciones_db
       CORREO_REMITENTE: ${CORREO_REMITENTE}
       SMS: ${SMS:-simulado}
       TELEGRAM_TOKEN: ${TELEGRAM_TOKEN:-}
@@ -97,6 +103,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+        required: false   # con Amazon RDS el contenedor postgres no se levanta
     healthcheck:
       <<: *salud
       test: ["CMD-SHELL", "wget -qO- http://localhost:8084/actuator/health || exit 1"]

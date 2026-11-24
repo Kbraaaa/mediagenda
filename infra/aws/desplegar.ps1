@@ -45,6 +45,10 @@ if (-not (Test-Path $envServidor)) {
     [IO.File]::WriteAllText($envServidor, (($lineas -join "`n") + "`n"), (New-Object Text.UTF8Encoding $false))
     Anotar "Se creo $envServidor (clave de base de datos nueva)"
 } else { Anotar "Se reutiliza $envServidor" }
+# Base de datos: si el .env no dice nada, se usa el contenedor postgres (hasta migrar a RDS)
+if (-not (Select-String -Path $envServidor -Pattern '^DB_HOST=' -Quiet)) {
+    [IO.File]::AppendAllText($envServidor, "COMPOSE_PROFILES=postgres-local`nDB_HOST=postgres`n")
+}
 # Nombre de las imagenes en ECR (el mismo que usa el despliegue automatico de GitHub Actions)
 if (-not (Select-String -Path $envServidor -Pattern '^ECR_REGISTRO=' -Quiet)) {
     [IO.File]::AppendAllText($envServidor, "ECR_REGISTRO=991839263115.dkr.ecr.us-east-2.amazonaws.com/mediagenda`n")
