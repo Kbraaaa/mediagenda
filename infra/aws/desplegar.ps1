@@ -45,6 +45,10 @@ if (-not (Test-Path $envServidor)) {
     [IO.File]::WriteAllText($envServidor, (($lineas -join "`n") + "`n"), (New-Object Text.UTF8Encoding $false))
     Anotar "Se creo $envServidor (clave de base de datos nueva)"
 } else { Anotar "Se reutiliza $envServidor" }
+# Nombre de las imagenes en ECR (el mismo que usa el despliegue automatico de GitHub Actions)
+if (-not (Select-String -Path $envServidor -Pattern '^ECR_REGISTRO=' -Quiet)) {
+    [IO.File]::AppendAllText($envServidor, "ECR_REGISTRO=991839263115.dkr.ecr.us-east-2.amazonaws.com/mediagenda`n")
+}
 
 # Se despliega el ultimo commit: avisar si hay cambios sin guardar
 if (git status --porcelain) { Anotar "AVISO: hay cambios sin commit; no se despliegan. Corre subir-cambios.bat primero si los necesitas." }

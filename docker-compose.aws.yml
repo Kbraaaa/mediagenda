@@ -1,5 +1,6 @@
 # MediAgenda en AWS (una instancia EC2). Uso:
 #   docker compose -f docker-compose.aws.yml --env-file .env up -d --build
+# Despliegue automatico: GitHub Actions sube las imagenes a ECR y actualiza este servidor (ver .github/workflows/ci.yml).
 # Diferencias con el entorno local:
 #   - Eventos por Amazon SQS en vez de RabbitMQ, correo por Amazon SES en vez de Mailpit (perfil "aws").
 #   - Las credenciales de AWS NO van aqui: el SDK las toma del rol de IAM de la instancia.
@@ -33,6 +34,8 @@ services:
 
   ms-pacientes:
     build: ./ms-pacientes
+    # CI/CD descarga esta imagen de ECR; desplegar-aws.bat la construye en el servidor con el mismo nombre
+    image: ${ECR_REGISTRO:-mediagenda}/ms-pacientes:latest
     restart: unless-stopped
     environment:
       <<: *aws
@@ -47,6 +50,8 @@ services:
 
   ms-citas:
     build: ./ms-citas
+    # CI/CD descarga esta imagen de ECR; desplegar-aws.bat la construye en el servidor con el mismo nombre
+    image: ${ECR_REGISTRO:-mediagenda}/ms-citas:latest
     restart: unless-stopped
     environment:
       <<: *aws
@@ -63,6 +68,8 @@ services:
 
   ms-farmacia:
     build: ./ms-farmacia
+    # CI/CD descarga esta imagen de ECR; desplegar-aws.bat la construye en el servidor con el mismo nombre
+    image: ${ECR_REGISTRO:-mediagenda}/ms-farmacia:latest
     restart: unless-stopped
     environment:
       <<: *aws
@@ -77,6 +84,8 @@ services:
 
   ms-notificaciones:
     build: ./ms-notificaciones
+    # CI/CD descarga esta imagen de ECR; desplegar-aws.bat la construye en el servidor con el mismo nombre
+    image: ${ECR_REGISTRO:-mediagenda}/ms-notificaciones:latest
     restart: unless-stopped
     environment:
       <<: *aws

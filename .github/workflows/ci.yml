@@ -1,12 +1,18 @@
-# Integracion continua: en cada push o pull request compila y prueba cada
-# microservicio. Si la cobertura de JaCoCo baja del 90 %, el pipeline falla.
-# (El despliegue a AWS se agrega en otro job cuando la cuenta este lista.)
-name: CI
+# CI/CD de MediAgenda.
+#  - pruebas: en cada push o pull request compila y prueba cada microservicio (JaCoCo >= 90 % o falla).
+#  - imagenes: solo en push a main y si las pruebas pasaron: construye las 4 imagenes y las sube a ECR.
+#  - despliegue: le ordena a la EC2 (AWS Systems Manager, sin SSH) descargar las imagenes nuevas y reiniciar.
+# GitHub entra a AWS con OIDC: un rol temporal que solo puede asumir este repositorio desde main.
+name: CI/CD
 
 on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
+
+env:
+  AWS_REGION: us-east-2
 
 jobs:
   pruebas:
@@ -17,19 +23,77 @@ jobs:
         servicio: [ms-pacientes, ms-citas, ms-farmacia, ms-notificaciones]
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '21'
           cache: maven
-
       - name: Pruebas y cobertura (${{ matrix.servicio }})
         run: mvn -B verify -f ${{ matrix.servicio }}/pom.xml
-
       - name: Publicar reporte de cobertura
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: cobertura-${{ matrix.servicio }}
           path: ${{ matrix.servicio }}/target/site/jacoco/
+
+  imagenes:
+    needs: pruebas
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && vars.AWS_ROLE_ARN != ''
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write   # para OIDC
+      contents: read
+    strategy:
+      matrix:
+        servicio: [ms-pacientes, ms-citas, ms-farmacia, ms-notificaciones]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - uses: aws-actions/amazon-ecr-login@v2
+      - name: Construir y subir ${{ matrix.servicio }}
+        run: |
+          IMAGEN=${{ vars.ECR_REGISTRO }}/${{ matrix.servicio }}
+          docker build -t $IMAGEN:${{ github.sha }} -t $IMAGEN:latest ./${{ matrix.servicio }}
+          docker push --all-tags $IMAGEN
+
+  despliegue:
+    needs: imagenes
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    environment:
+      name: aws
+      url: http://3.139.58.88/api/v1/medicamentos
+    steps:
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - name: Actualizar la EC2 con las imagenes nuevas
+        run: |
+          REG=${{ vars.ECR_REGISTRO }}
+          cat > comandos.json <<JSON
+          {"commands":[
+            "set -e",
+            "cd /home/ec2-user/mediagenda",
+            "aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${REG%%/*}",
+            "export ECR_REGISTRO=${REG}",
+            "docker compose -f docker-compose.aws.yml pull ms-pacientes ms-citas ms-farmacia ms-notificaciones",
+            "docker compose -f docker-compose.aws.yml up -d --no-build",
+            "docker compose -f docker-compose.aws.yml restart nginx",
+            "for i in \$(seq 1 40); do ok=0; for r in pacientes medicos medicamentos notificaciones; do curl -fs -o /dev/null http://localhost/api/v1/\$r && ok=\$((ok+1)); done; [ \$ok -eq 4 ] && echo DESPLEGADO OK && exit 0; sleep 5; done; echo SOLO \$ok DE 4 SERVICIOS; exit 1"
+          ]}
+          JSON
+          ID=$(aws ssm send-command --instance-ids ${{ vars.EC2_INSTANCE_ID }} --document-name AWS-RunShellScript \
+               --comment "MediAgenda ${{ github.sha }}" --parameters file://comandos.json \
+               --timeout-seconds 600 --query Command.CommandId --output text)
+          echo "Orden enviada: $ID"
+          aws ssm wait command-executed --command-id $ID --instance-id ${{ vars.EC2_INSTANCE_ID }} || true
+          aws ssm get-command-invocation --command-id $ID --instance-id ${{ vars.EC2_INSTANCE_ID }} \
+            --query '[Status, StandardOutputContent, StandardErrorContent]' --output text
+          test "$(aws ssm get-command-invocation --command-id $ID --instance-id ${{ vars.EC2_INSTANCE_ID }} --query Status --output text)" = "Success"
