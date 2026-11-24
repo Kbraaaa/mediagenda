@@ -19,6 +19,9 @@ $clave = (Get-Content $envServidor | Where-Object { $_ -match '^DB_PASSWORD=' })
 # 1. En el servidor: detener los servicios (nadie escribe), crear las bases en RDS, copiar y comparar
 $bases = "pacientes_db citas_db farmacia_db notificaciones_db"
 $remoto = @"
+# Todo va dentro de una funcion: bash lee el script completo antes de ejecutar. Si no, los
+# "docker run -i" leerian el resto del script desde la entrada estandar y se lo comerian.
+migrar() {
 set -e
 cd mediagenda
 DC='docker compose -f docker-compose.aws.yml'
@@ -35,9 +38,14 @@ for db in $bases; do
   done
 done
 echo COPIA OK
+}
+# El "#" final absorbe el \r que PowerShell agrega al terminar de enviar el texto
+migrar #
 "@
 Anotar "1/3 Copiando las 4 bases al RDS (los servicios quedan detenidos unos minutos)..."
-$log = & ssh @ssh $destino ($remoto -replace "`r", "") 2>&1
+# El script viaja por la entrada estandar (bash -s): PowerShell 5.1 se come las comillas dobles
+# cuando el texto va como parametro de ssh, y las consultas SQL las necesitan.
+$log = ($remoto -replace "`r", "") | & ssh @ssh $destino "bash -s" 2>&1
 $log | ForEach-Object { Anotar "$_" }
 if (-not ($log -match "COPIA OK")) { Anotar "FALLO la copia: no se cambio nada. Arranco los servicios de nuevo con el contenedor."
     & ssh @ssh $destino "cd mediagenda && docker compose -f docker-compose.aws.yml start ms-pacientes ms-citas ms-farmacia ms-notificaciones" | Out-Null
