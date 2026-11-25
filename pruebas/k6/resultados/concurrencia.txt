@@ -1,9 +1,9 @@
 Prueba: concurrencia
-Peticiones: 102 (70.8 por segundo)
-Tiempo de respuesta: promedio 209 ms, mediana 106 ms, p90 467 ms, p95 482 ms, maximo 578 ms
+Peticiones: 102 (57.7 por segundo)
+Tiempo de respuesta: promedio 129 ms, mediana 136 ms, p90 254 ms, p95 258 ms, maximo 376 ms
 Errores HTTP inesperados: 48.04 %
 Usuarios virtuales maximos: 50
-Umbral citas_ganadas count==1: CUMPLE
-Umbral citas_rechazadas_409 count==49: CUMPLE
 Umbral respuestas_inesperadas count==0: CUMPLE
+Umbral citas_rechazadas_409 count==49: CUMPLE
+Umbral citas_ganadas count==1: CUMPLE
 Ganaron la franja: 1 | Rechazadas con 409: 49 | Respuestas inesperadas: 0

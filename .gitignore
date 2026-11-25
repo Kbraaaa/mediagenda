@@ -24,28 +24,14 @@ k6/resultados/
 resultado-pruebas.txt
 !.env.example
 !.env.aws.example
-aws-cambios.zip
 resumen-pruebas.txt
-pruebas/postman.zip
 pruebas/postman/reporte-*.html
 pruebas/postman/resultado-postman-*.txt
 
 # Temporales y registros locales
+*.zip
 *.tmp
 docker-log.txt
 pruebas/log-*.txt
 pruebas/resultado-*.txt
-sms.zip
-github-aws.zip
-region.zip
-sms-aws.zip
-desplegar.zip
-k6.zip
-cobertura.zip
 pruebas/cobertura-aws/
-cob2.zip
-cob3.zip
-cicd.zip
-oidc.zip
-telegram.zip
-rds.zip

@@ -1,6 +1,6 @@
 # Despliega MediAgenda en la EC2 desde este PC (PowerShell 5.1, Windows 10/11).
 # Empaqueta el ultimo commit, arma el .env del servidor (sin pasar por GitHub), lo sube por SSH
-# y arranca docker-compose.aws.yml. Uso: desplegar-aws.bat (pide lo que falte).
+# y arranca docker-compose.aws.yml. Uso: scripts\aws\desplegar-aws.bat (pide lo que falte).
 param(
     [string]$Ip = "3.139.58.88",
     [string]$Clave = "",

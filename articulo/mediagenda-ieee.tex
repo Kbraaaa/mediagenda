@@ -1,0 +1,342 @@
+\documentclass[conference]{IEEEtran}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish,es-tabla,es-noshorthands]{babel}
+\usepackage{cite}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{array}
+\usepackage{xcolor}
+\usepackage{url}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta,fit,backgrounds,calc,babel}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\def\UrlBreaks{\do\/\do-\do.\do_}
+
+\definecolor{azul}{RGB}{31,78,121}
+\definecolor{verde}{RGB}{56,118,29}
+\definecolor{naranja}{RGB}{191,96,0}
+\definecolor{gris}{RGB}{110,110,110}
+
+\begin{document}
+
+\title{Integración de herramientas en el ciclo de vida de una arquitectura de microservicios: caso MediAgenda, plataforma de citas médicas desplegada en AWS}
+
+\author{\IEEEauthorblockN{Juan Diego Portilla Riveros}
+\IEEEauthorblockA{Programa de Ingeniería de Sistemas\\
+Universidad de Cundinamarca, Fusagasugá, Colombia\\
+jdiegoportilla@ucucundinamarca.edu.co}}
+
+\maketitle
+
+\begin{abstract}
+Este artículo estudia cómo se relacionan las herramientas que intervienen en el ciclo de vida de un sistema de microservicios, desde el diseño hasta la operación en la nube, y qué papel cumple la arquitectura limpia en la posibilidad de sustituirlas. Como caso se construyó MediAgenda, una plataforma de agendamiento médico con cuatro microservicios en Java 21 y Spring Boot (pacientes, citas, farmacia y notificaciones), triage asistido por IA generativa, eventos asíncronos y avisos por correo y mensajería, desplegada en Amazon Web Services con integración y despliegue continuos. Durante el proyecto se reemplazaron cuatro herramientas de infraestructura (RabbitMQ por Amazon SQS, SMTP por Amazon SES, Amazon SNS por Telegram y PostgreSQL en contenedor por Amazon RDS) sin modificar el dominio ni los casos de uso. La evaluación combinó 264 pruebas unitarias (100\,\% de líneas cubiertas), 117 peticiones de Postman contra el sistema desplegado (473 de 473 verificaciones aprobadas y 91,0\,\% del código activo en AWS cubierto) y pruebas de carga, estrés y concurrencia con k6. El sistema mantuvo un percentil 95 inferior a 500\,ms hasta 200 usuarios simultáneos con 0\,\% de errores, y el traslado de la base de datos a RDS aumentó el rendimiento en 8\,\% a cambio de mayor latencia con poca carga.
+\end{abstract}
+
+\begin{IEEEkeywords}
+Microservicios, arquitectura limpia, integración continua, despliegue continuo, AWS, pruebas de software, k6.
+\end{IEEEkeywords}
+
+\section{Introducción}
+La asignación de citas es uno de los procesos más sensibles de una institución prestadora de servicios de salud (IPS): involucra a pacientes, médicos, agendas, fórmulas y avisos, y debe evitar errores como asignar la misma franja horaria a dos personas. Los sistemas monolíticos que soportan este proceso suelen crecer hasta volverse difíciles de probar y de desplegar por partes, lo que motiva el estilo de microservicios: aplicaciones compuestas por servicios pequeños, desplegables de forma independiente y organizados alrededor de capacidades del negocio~\cite{lewis2014,newman2021}.
+
+Sin embargo, adoptar microservicios no se reduce a dividir el código. Exige un ecosistema de herramientas (frameworks, bases de datos, mensajería, contenedores, pruebas, integración continua y nube) cuya interacción determina buena parte de la calidad final~\cite{dragoni2017}. La literatura describe cada herramienta por separado, pero rara vez documenta cómo se relacionan entre sí en un proyecto concreto y qué ocurre cuando una de ellas debe ser reemplazada.
+
+Este trabajo aborda la siguiente pregunta: \emph{¿cómo se relacionan e integran las herramientas en cada fase del ciclo de vida de un sistema de microservicios, y qué efecto tiene la arquitectura limpia sobre la posibilidad de sustituirlas?} Para responderla se plantearon tres objetivos:
+\begin{enumerate}
+\item Diseñar e implementar una plataforma de salud de cuatro microservicios con arquitectura limpia, que integre servicios externos (IA generativa, festivos, correo y mensajería) y se despliegue en AWS.
+\item Analizar cómo se relacionan las herramientas usadas en cada fase del ciclo de vida y cómo el patrón de puertos y adaptadores permite sustituirlas.
+\item Evaluar la calidad y el rendimiento del sistema desplegado: cobertura de pruebas, tiempo de respuesta inferior a 500\,ms, comportamiento bajo carga, estrés y concurrencia, y el efecto de trasladar la base de datos a un servicio administrado.
+\end{enumerate}
+
+\section{Marco teórico}
+\subsection{Microservicios y arquitectura limpia}
+Un microservicio encapsula una capacidad del negocio, tiene su propia base de datos y se comunica con los demás mediante interfaces de red~\cite{lewis2014,richardson2018}. La arquitectura limpia~\cite{martin2017} y la arquitectura hexagonal~\cite{cockburn2005} organizan cada servicio en capas concéntricas: el dominio y los casos de uso en el centro, y la infraestructura (bases de datos, colas, clientes HTTP) en la periferia. El dominio declara \emph{puertos} (interfaces) y la infraestructura aporta \emph{adaptadores} que los implementan. Esta inversión de dependencias es la que, en principio, permite cambiar una tecnología sin tocar las reglas de negocio.
+
+\subsection{Comunicación asíncrona}
+Además de las llamadas síncronas REST, los microservicios intercambian eventos a través de intermediarios de mensajes. Estos garantizan, por lo general, entrega ``al menos una vez'', lo que obliga a que los consumidores sean idempotentes y a disponer de colas de mensajes muertos para los mensajes que fallan repetidamente~\cite{kleppmann2017,sqs}.
+
+\subsection{Pruebas e integración continua}
+La pirámide de pruebas propone muchas pruebas unitarias rápidas en la base y menos pruebas de integración y de extremo a extremo hacia la cima~\cite{cohn2009}. La entrega continua automatiza el camino desde el cambio en el código hasta el despliegue, de forma que cada versión pase por las mismas verificaciones antes de llegar a producción~\cite{humble2010}.
+
+\subsection{Trabajos relacionados y brecha}
+Los trabajos de referencia sobre microservicios se concentran en la descomposición del dominio, los patrones de comunicación y la autonomía de los equipos~\cite{dragoni2017,newman2021,richardson2018}. Por su parte, la literatura sobre entrega continua describe el pipeline como una secuencia de etapas de verificación~\cite{humble2010}, y la de arquitectura limpia defiende la independencia del dominio frente a los detalles técnicos~\cite{martin2017,cockburn2005}. Cada línea aborda una parte del problema, pero pocas veces se muestra, con datos de un mismo sistema, cómo una decisión de arquitectura condiciona a las herramientas de prueba, integración, despliegue y operación, ni cuánto cuesta en la práctica cambiar una de ellas. Este trabajo aporta un caso completo y medido que conecta esas perspectivas.
+
+\section{Metodología}
+El trabajo siguió un enfoque de estudio de caso con desarrollo incremental. Primero se implementaron y probaron los cuatro microservicios en un entorno local con Docker Compose. Después se desplegaron en AWS y, sobre el sistema desplegado, se ejecutaron tres tipos de evaluación:
+\begin{itemize}
+\item \textbf{Cobertura}: pruebas unitarias con JUnit 5, Mockito y MockMvc medidas con JaCoCo~\cite{jacoco}; y cobertura en producción mediante el agente de JaCoCo dentro de cada contenedor mientras la colección de Postman ejercitaba la API real.
+\item \textbf{Funcionalidad}: 117 peticiones de Postman ejecutadas con Newman desde Colombia contra el servidor en la región \texttt{us-east-2}, con 473 verificaciones de código HTTP, contenido y tiempo de respuesta.
+\item \textbf{Rendimiento}: tres escenarios de k6~\cite{k6} ejecutados dentro del servidor para aislar la latencia de internet: concurrencia (50 usuarios piden la misma franja), carga (30 usuarios durante 3 minutos) y estrés (escalones de 25, 50, 100, 150 y 200 usuarios). Cada escenario se corrió con PostgreSQL en un contenedor de la máquina virtual y, luego, con Amazon RDS.
+\end{itemize}
+Las sustituciones de herramientas se registraron a medida que ocurrieron, junto con su causa y los archivos modificados.
+
+\section{Arquitectura e implementación}
+MediAgenda consta de cuatro microservicios con 30 operaciones REST en total (Fig.~\ref{fig:arquitectura}):
+\begin{itemize}
+\item \textbf{ms-pacientes}: registro, consulta, búsqueda, actualización y desactivación lógica de pacientes.
+\item \textbf{ms-citas}: médicos, agendas por franjas, citas y triage. Valida al paciente consultando a ms-pacientes por REST, descarta días festivos de Colombia consultando la API Nager.Date~\cite{nager} y solicita a Gemini~\cite{gemini} una especialidad y una prioridad sugeridas a partir de los síntomas, en segundo plano y con un respaldo por reglas si la IA no responde.
+\item \textbf{ms-farmacia}: medicamentos y fórmulas; solo permite emitir una fórmula para una cita atendida, que consulta a ms-citas.
+\item \textbf{ms-notificaciones}: consume los eventos de citas y fórmulas y envía un correo y un aviso al celular, con reintentos para los envíos fallidos.
+\end{itemize}
+
+Cada servicio tiene su propia base de datos, versionada con Flyway. Las reglas críticas se apoyan en la base de datos y no en la memoria de la aplicación: la reserva de una franja es una actualización atómica condicionada al estado \emph{disponible}, respaldada por un índice único parcial, y la dispensación de una fórmula bloquea las filas de los medicamentos (\texttt{SELECT ... FOR UPDATE}) antes de descontar el inventario. El consumo de eventos es idempotente gracias a un identificador único por evento.
+
+La Tabla~\ref{tab:apis} resume las operaciones expuestas. Todas las rutas comparten el prefijo \texttt{/api/v1}, devuelven errores en un formato común y usan códigos HTTP coherentes con la regla incumplida: 400 para datos inválidos, 404 para recursos inexistentes, 409 para conflictos de estado (franja ocupada, inventario insuficiente), 422 para citas en día festivo y 503 cuando un servicio vecino no responde.
+
+\begin{table}[t]
+\caption{Operaciones REST por microservicio}
+\label{tab:apis}
+\centering
+\footnotesize
+\begin{tabular}{@{}llp{38mm}@{}}
+\toprule
+\textbf{Servicio} & \textbf{Recurso} & \textbf{Operaciones} \\
+\midrule
+ms-pacientes & pacientes & crear, consultar, listar, actualizar, desactivar \\
+\midrule
+ms-citas & médicos & crear, consultar, listar, abrir franjas \\
+ & franjas & listar disponibles \\
+ & citas & agendar, consultar, listar, reprogramar, cancelar, atender \\
+\midrule
+ms-farmacia & medicamentos & crear, consultar, listar, ajustar inventario \\
+ & fórmulas & emitir, consultar, listar, dispensar, anular \\
+\midrule
+ms-notificaciones & notificaciones & crear, consultar, listar, reintentar, marcar leída \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure*}[t]
+\centering
+\begin{tikzpicture}[
+  font=\footnotesize,
+  caja/.style={draw, rounded corners=2pt, align=center, minimum height=7mm, inner sep=3pt, fill=white},
+  ms/.style={caja, fill=azul!10, draw=azul, minimum width=21mm},
+  aws/.style={caja, fill=naranja!10, draw=naranja},
+  ext/.style={caja, fill=verde!10, draw=verde},
+  fl/.style={-{Stealth[length=2mm]}, thick},
+  rest/.style={fl, azul},
+  asin/.style={fl, naranja, dashed}]
+\node[caja] (cli) at (0,0) {Cliente\\(Postman, k6, web)};
+\node[caja] (nginx) at (3.6,0) {nginx\\puerta única};
+\node[ms] (pac) at (7,1.5) {ms-pacientes};
+\node[ms] (cit) at (7,0.5) {ms-citas};
+\node[ms] (far) at (7,-0.5) {ms-farmacia};
+\node[ms] (not) at (7,-1.5) {ms-notificaciones};
+\node[aws] (sqs) at (11,0) {Amazon SQS\\(+ cola de muertos)};
+\node[ext] (gem) at (11,1.4) {Gemini (triage IA)};
+\node[ext] (nag) at (11,2.3) {Nager.Date (festivos)};
+\node[aws] (ses) at (11,-2.6) {Amazon SES\\correo};
+\node[ext] (tg) at (13.4,-2.6) {Telegram\\Bot API};
+\begin{scope}[on background layer]
+\node[draw=naranja, dashed, rounded corners, fit=(nginx)(pac)(not), inner sep=4mm, label={[font=\footnotesize\bfseries, text=naranja]above:EC2 (Docker Compose)}] (ec2) {};
+\end{scope}
+\node[aws] (rds) at (7,-3.4) {Amazon RDS PostgreSQL (4 bases de datos)};
+\node[caja, fill=gris!10, draw=gris] (gh) at (0,-2) {GitHub Actions\\pruebas + imágenes};
+\node[aws] (ecr) at (-0.8,-3.4) {Amazon ECR};
+\node[aws] (ssm) at (1.2,-3.4) {Systems\\Manager};
+\draw[rest] (cli) -- (nginx);
+\foreach \m in {pac,cit,far,not}{\draw[rest] (nginx.east) -- ++(5mm,0) |- (\m.west);}
+\draw[rest] (cit.north) -- node[right, font=\scriptsize]{REST} (pac.south);
+\draw[rest] (far.north) -- node[right, font=\scriptsize]{REST} (cit.south);
+\draw[asin] ([yshift=-1mm]cit.east) -- ++(8mm,0) |- (sqs.west);
+\draw[asin] (far.east) -- ++(8mm,0) |- (sqs.west);
+\draw[asin] (sqs.south) |- ([yshift=1.2mm]not.east);
+\draw[fl, verde] ([yshift=-1.2mm]not.east) -- ++(12mm,0) |- (ses.west);
+\draw[fl, verde] (ses.east) -- (tg.west);
+\draw[fl, verde] ([yshift=1mm]cit.east) -- ++(16mm,0) |- (gem.west);
+\draw[fl, verde] ([yshift=1mm]cit.east) -- ++(16mm,0) |- (nag.west);
+\draw[fl, gris] (rds.north |- ec2.south) -- (rds.north);
+\draw[fl, gris] (gh.south -| ecr.north) -- node[left, font=\scriptsize]{OIDC} (ecr.north);
+\draw[fl, gris] (gh.south -| ssm.north) -- (ssm.north);
+\draw[fl, gris] (ssm.east) -| (nginx.south |- ec2.south);
+\end{tikzpicture}
+\caption{Arquitectura de MediAgenda en AWS. Flechas azules: llamadas REST; naranjas discontinuas: eventos; verdes: servicios externos; grises: base de datos y despliegue automático.}
+\label{fig:arquitectura}
+\end{figure*}
+
+\section{Ecosistema de herramientas}
+La Fig.~\ref{fig:mapa} organiza las herramientas por fase del ciclo de vida. Las relaciones más significativas no se dan dentro de una misma fase, sino entre fases: una decisión de diseño habilita o restringe a las herramientas de las fases siguientes.
+
+\begin{figure*}[t]
+\centering
+\begin{tikzpicture}[
+  font=\scriptsize,
+  fase/.style={draw, rounded corners=3pt, minimum width=31mm, minimum height=6mm, font=\footnotesize\bfseries, text=white},
+  her/.style={draw=gris, rounded corners=2pt, minimum width=29mm, minimum height=4.6mm, fill=white},
+  rel/.style={-{Stealth[length=1.8mm]}, thick, naranja}]
+\foreach \i/\f/\c in {0/Diseño y código/azul, 1/Pruebas/verde, 2/Integración/gris, 3/Despliegue/naranja, 4/Operación/azul!70!black}{
+  \node[fase, fill=\c] (f\i) at (\i*34mm,0) {\f};
+}
+\foreach \i/\lista in {
+  0/{Java 21 y Spring Boot 4, Arquitectura limpia, Flyway (migraciones), JPA y PostgreSQL, RestClient, AWS SDK v2},
+  1/{JUnit 5 y Mockito, MockMvc, JaCoCo (umbral), Postman y Newman, k6, Agente JaCoCo en AWS},
+  2/{Git y GitHub, Maven Wrapper, GitHub Actions, Docker (multi-etapa), Amazon ECR, OIDC (sin claves)},
+  3/{EC2 y Docker Compose, nginx, IAM (rol), Systems Manager, Perfil \texttt{aws}, CloudShell},
+  4/{Amazon RDS, Amazon SQS, Amazon SES, Telegram Bot API, Gemini y Nager.Date, CloudTrail}}{
+  \foreach \h [count=\j] in \lista {
+    \node[her] (h\i-\j) at (\i*34mm, -\j*6mm-2mm) {\h};
+  }
+}
+\tikzset{num/.style={circle, fill=naranja, text=white, inner sep=0.6pt, font=\tiny\bfseries}}
+\draw[rel] (h0-2.east) -- node[num]{1} (h1-1.west);
+\draw[rel] (h1-3.east) -- node[num]{2} (h2-3.west);
+\draw[rel] (h2-6.east) -- node[num]{3} (h3-4.west);
+\draw[rel] (h3-3.east) -- node[num]{4} (h4-2.west);
+\draw[rel] (h3-5.east) -- node[num]{5} (h4-4.west);
+\draw[rel] (h4-6.south) to[out=-150,in=-30] node[num]{6} (h2-6.south);
+\end{tikzpicture}
+\caption{Herramientas de MediAgenda por fase del ciclo de vida y principales relaciones entre fases: (1) los puertos permiten simular la infraestructura en las pruebas; (2) JaCoCo bloquea el pipeline si la cobertura baja del 90\,\%; (3) OIDC entrega un rol temporal para desplegar; (4) el rol IAM da permisos a la máquina virtual sin claves; (5) el perfil \texttt{aws} elige el adaptador; (6) CloudTrail permitió diagnosticar el rechazo del rol.}
+\label{fig:mapa}
+\end{figure*}
+
+\subsection{Del diseño a las pruebas}
+La arquitectura limpia hace que cada caso de uso dependa solo de interfaces. Esto permitió que las 264 pruebas unitarias reemplazaran la base de datos, las colas y las APIs externas por simulaciones de Mockito o por servidores HTTP simulados, y que cada servicio se pruebe en unos 15 segundos sin red ni Docker. La relación inversa también se observó: la herramienta de pruebas detectó un defecto que la de diseño no habría revelado, al codificar Spring los dos puntos del token de Telegram dentro de la URL.
+
+\subsection{De las pruebas a la integración}
+JaCoCo no solo mide: en la fase \texttt{verify} de Maven hace fallar la compilación si la cobertura de líneas baja del 90\,\%. GitHub Actions ejecuta esa misma fase para cada servicio, de modo que la regla de calidad se vuelve una condición para publicar imágenes. Durante el proyecto el pipeline se negó a desplegar una versión con cuatro pruebas fallidas, y el servidor siguió atendiendo con la versión anterior.
+
+\subsection{De la integración al despliegue}
+GitHub Actions construye las imágenes Docker y las sube a Amazon ECR, y luego ordena a la máquina virtual descargarlas mediante AWS Systems Manager~\cite{ssm}, sin abrir el puerto SSH. Para entrar a AWS, el flujo no guarda credenciales: usa un rol temporal obtenido por OpenID Connect~\cite{oidc}. Esta relación produjo uno de los hallazgos del trabajo (sección~\ref{sec:discusion}).
+
+\subsection{Sustitución de herramientas}
+La Tabla~\ref{tab:reemplazos} resume las cuatro sustituciones. En todas, el cambio consistió en agregar un adaptador y seleccionarlo con una propiedad de configuración; ninguna requirió modificar el dominio ni los casos de uso.
+
+\begin{table}[t]
+\centering
+\caption{Herramientas sustituidas sin modificar el dominio}
+\label{tab:reemplazos}
+\renewcommand{\arraystretch}{1.15}
+\begin{tabular}{@{}p{14mm}p{16mm}p{16mm}p{23mm}@{}}
+\toprule
+\textbf{Puerto} & \textbf{Antes} & \textbf{Después} & \textbf{Causa} \\
+\midrule
+Eventos & RabbitMQ & Amazon SQS & Servicio administrado en la nube \\
+Correo & SMTP (Mailpit) & Amazon SES & Envío real sin credenciales SMTP \\
+Aviso móvil & Amazon SNS & Telegram & La cuenta no entrega SMS (restricción externa) \\
+Base de datos & PostgreSQL en contenedor & Amazon RDS & Copias de seguridad y administración \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Resultados}
+\subsection{Cobertura y funcionalidad}
+Las 264 pruebas unitarias cubrieron el 100\,\% de las líneas de los cuatro servicios y entre el 98,1\,\% y el 100\,\% de las ramas. Sobre el sistema desplegado, la colección de Postman aprobó 473 de 473 verificaciones, con un tiempo medio de 109\,ms y un máximo de 446\,ms medidos desde Colombia. La Tabla~\ref{tab:cobertura} compara la cobertura unitaria con la obtenida en producción. La columna \emph{activo en AWS} excluye seis clases que, por configuración, no se usan en la nube (los adaptadores de RabbitMQ, SMTP y SNS, y los respaldos de Gemini y de los festivos), que sí están cubiertas por las pruebas unitarias.
+
+\begin{table}[t]
+\centering
+\caption{Cobertura de líneas: unitaria y con las APIs desplegadas}
+\label{tab:cobertura}
+\renewcommand{\arraystretch}{1.1}
+\begin{tabular}{@{}lccc@{}}
+\toprule
+& \textbf{Unitaria} & \multicolumn{2}{c}{\textbf{Desplegada (AWS)}} \\
+\cmidrule(l){3-4}
+\textbf{Servicio} & & \textbf{Todo} & \textbf{Activo} \\
+\midrule
+ms-pacientes & 100\,\% & 94,0\,\% & 94,0\,\% \\
+ms-citas & 100\,\% & 77,5\,\% & 88,1\,\% \\
+ms-farmacia & 100\,\% & 90,8\,\% & 94,3\,\% \\
+ms-notificaciones & 100\,\% & 83,4\,\% & 90,7\,\% \\
+\midrule
+\textbf{Total} & \textbf{100\,\%} & \textbf{84,0\,\%} & \textbf{91,0\,\%} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Concurrencia, carga y estrés}
+En la prueba de concurrencia, de 50 solicitudes simultáneas por la misma franja exactamente una fue aceptada y 49 recibieron el código 409, tanto con la base en contenedor como con RDS. La Tabla~\ref{tab:k6} y la Fig.~\ref{fig:estres} resumen los demás escenarios. Ninguno superó la meta de 500\,ms en el percentil 95 ni registró errores.
+
+\begin{table}[t]
+\centering
+\caption{Resultados de k6 en el servidor}
+\label{tab:k6}
+\renewcommand{\arraystretch}{1.1}
+\begin{tabular}{@{}lrr@{}}
+\toprule
+\textbf{Métrica} & \textbf{Contenedor} & \textbf{RDS} \\
+\midrule
+Carga: peticiones (3 min) & 51\,012 & 42\,165 \\
+Carga: p95 / máximo (ms) & 34 / 175 & 133 / 580 \\
+Estrés: peticiones & 330\,330 & 358\,533 \\
+Estrés: peticiones por segundo & 688 & 746 \\
+Estrés: p95 global (ms) & 288 & 285 \\
+Errores en carga y estrés & 0\,\% & 0\,\% \\
+Concurrencia: aceptadas / 409 & 1 / 49 & 1 / 49 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+  width=\columnwidth, height=52mm,
+  xlabel={Usuarios simultáneos}, ylabel={p95 (ms)},
+  symbolic x coords={25,50,100,150,200}, xtick=data,
+  ymin=0, ymax=560, ymajorgrids, grid style={gray!25},
+  legend style={at={(0.02,0.98)}, anchor=north west, font=\scriptsize, draw=none, fill=white, fill opacity=0.8},
+  tick label style={font=\scriptsize}, label style={font=\footnotesize}]
+\addplot[azul, thick, mark=*] coordinates {(25,8) (50,12) (100,101) (150,290) (200,422)};
+\addplot[naranja, thick, mark=square*] coordinates {(25,24) (50,27) (100,72) (150,267) (200,473)};
+\addplot[gris, dashed, thick, no marks] coordinates {(25,500) (200,500)};
+\legend{PostgreSQL en contenedor, Amazon RDS, Límite de 500 ms}
+\end{axis}
+\end{tikzpicture}
+\caption{Percentil 95 del tiempo de respuesta en la prueba de estrés según el número de usuarios simultáneos.}
+\label{fig:estres}
+\end{figure}
+
+\section{Discusión}\label{sec:discusion}
+\subsection{Hallazgos de la integración}
+Varias de las relaciones entre herramientas solo se hicieron visibles al desplegar:
+\begin{itemize}
+\item \textbf{SMS aceptado pero no entregado.} Amazon SNS respondió con un identificador de mensaje, pero el SMS nunca llegó: la cuenta del plan gratuito está en modo de prueba y una política de la organización impide verificar números. Que una API acepte un mensaje no garantiza que se entregue. El puerto de aviso móvil permitió reemplazar SNS por Telegram~\cite{telegram} sin afectar el resto del sistema.
+\item \textbf{Formato de identidad de GitHub.} El rol de AWS rechazaba a GitHub Actions aunque la regla de confianza seguía la documentación clásica. El registro de auditoría (CloudTrail) mostró que GitHub se identificaba como \path{repo:Kbraaaa@134634912/mediagenda@1469382444:...}, con identificadores numéricos del propietario y del repositorio; ajustar la regla a ese formato resolvió el problema.
+\item \textbf{Resolución de nombres en nginx.} Al recrear un contenedor cambia su dirección interna, pero nginx resuelve los nombres solo al arrancar y respondía con error 502. El despliegue ahora reinicia nginx al final.
+\item \textbf{Arranque en frío.} La primera ejecución de Postman tras desplegar tuvo 7 respuestas por encima de 500\,ms. Un calentamiento automático al arrancar, que abre las conexiones externas y ejecuta las consultas propias, eliminó el efecto.
+\end{itemize}
+
+\subsection{Contenedor frente a RDS}
+Con poca carga, la base en contenedor responde más rápido porque comparte máquina con los servicios; RDS añade un salto de red en cada consulta. Con 100 usuarios la relación se invierte (72 frente a 101\,ms), porque la base deja de competir por los dos procesadores de la máquina virtual, y el rendimiento total sube un 8\,\%. Con 200 usuarios, la instancia \texttt{db.t4g.micro}, la más pequeña de RDS, se acerca al límite.
+
+\subsection{Implicaciones para el diseño}
+De la experiencia se derivan tres recomendaciones. Primera: definir los puertos desde el inicio, aunque al principio solo exista un adaptador, porque el costo de crearlos después crece con el número de casos de uso que dependen de la tecnología concreta. Segunda: medir la cobertura también sobre el sistema desplegado; la diferencia entre el 100\,\% unitario y el 84,0\,\% desplegado señala código que existe pero que la configuración de producción nunca ejecuta, información útil para decidir qué mantener. Tercera: tratar la configuración como parte de la arquitectura. Varios de los fallos observados (variables de entorno ausentes, el formato de identidad de GitHub o la caché de direcciones de nginx) no estaban en el código sino en la frontera entre herramientas, y solo las pruebas contra el sistema desplegado los hicieron visibles.
+
+\subsection{Limitaciones}
+Las pruebas de k6 se ejecutaron en la misma máquina que la aplicación, por lo que compiten por el procesador y los resultados de estrés son conservadores. Cada despliegue interrumpe el servicio durante aproximadamente un minuto, ya que existe una sola instancia. El aviso por Telegram llega a un chat de demostración y no a un chat por paciente.
+
+\section{Conclusiones}
+\begin{enumerate}
+\item \textbf{Integración.} La arquitectura limpia convirtió las herramientas de infraestructura en piezas intercambiables: cuatro sustituciones (mensajería, correo, aviso móvil y base de datos) se realizaron sin modificar el dominio ni los casos de uso, incluida una forzada por una restricción externa. La relación más estrecha entre herramientas no fue técnica, sino de diseño: los puertos definidos al inicio determinaron qué tan barato fue cada cambio posterior.
+\item \textbf{Calidad.} Combinar pruebas unitarias con pruebas sobre el sistema desplegado ofrece una visión más completa que cualquiera de las dos por separado. Se alcanzó el 100\,\% de cobertura unitaria y el 91,0\,\% del código activo en AWS, y el pipeline de integración continua bloqueó un despliegue con un defecto real antes de que llegara al servidor.
+\item \textbf{Rendimiento.} El sistema cumple el requisito de responder en menos de 500\,ms en el percentil 95 hasta 200 usuarios simultáneos, con 0\,\% de errores y con la regla de concurrencia garantizada por la base de datos. Trasladar la base de datos a RDS aumenta el rendimiento en 8\,\% y mejora la respuesta con carga media, a cambio de mayor latencia con poca carga.
+\end{enumerate}
+
+Como trabajo futuro se plantea desplegar al menos dos instancias detrás de un balanceador para evitar la interrupción en cada despliegue, vincular un chat de Telegram por paciente y ejecutar las pruebas de carga desde una máquina independiente.
+
+\begin{thebibliography}{99}
+\bibitem{lewis2014} J. Lewis y M. Fowler, ``Microservices: a definition of this new architectural term,'' \emph{martinfowler.com}, mar. 2014. [En línea]. Disponible: \url{https://martinfowler.com/articles/microservices.html}
+\bibitem{newman2021} S. Newman, \emph{Building Microservices}, 2.\textordfeminine{} ed. Sebastopol, CA, EE.\,UU.: O'Reilly Media, 2021.
+\bibitem{dragoni2017} N. Dragoni \emph{et al.}, ``Microservices: yesterday, today, and tomorrow,'' en \emph{Present and Ulterior Software Engineering}. Cham, Suiza: Springer, 2017, pp. 195--216.
+\bibitem{richardson2018} C. Richardson, \emph{Microservices Patterns}. Shelter Island, NY, EE.\,UU.: Manning, 2018.
+\bibitem{martin2017} R. C. Martin, \emph{Clean Architecture: A Craftsman's Guide to Software Structure and Design}. Boston, MA, EE.\,UU.: Prentice Hall, 2017.
+\bibitem{cockburn2005} A. Cockburn, ``Hexagonal architecture,'' 2005. [En línea]. Disponible: \url{https://alistair.cockburn.us/hexagonal-architecture/}
+\bibitem{kleppmann2017} M. Kleppmann, \emph{Designing Data-Intensive Applications}. Sebastopol, CA, EE.\,UU.: O'Reilly Media, 2017.
+\bibitem{cohn2009} M. Cohn, \emph{Succeeding with Agile: Software Development Using Scrum}. Boston, MA, EE.\,UU.: Addison-Wesley, 2009.
+\bibitem{humble2010} J. Humble y D. Farley, \emph{Continuous Delivery: Reliable Software Releases through Build, Test, and Deployment Automation}. Boston, MA, EE.\,UU.: Addison-Wesley, 2010.
+\bibitem{sqs} Amazon Web Services, ``Amazon Simple Queue Service: Developer Guide.'' [En línea]. Disponible: \url{https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/}
+\bibitem{ssm} Amazon Web Services, ``AWS Systems Manager Run Command.'' [En línea]. Disponible: \url{https://docs.aws.amazon.com/systems-manager/latest/userguide/run-command.html}
+\bibitem{oidc} GitHub, ``Configuring OpenID Connect in Amazon Web Services.'' [En línea]. Disponible: \url{https://docs.github.com/en/actions/security-for-github-actions/security-hardening-your-deployments/configuring-openid-connect-in-amazon-web-services}
+\bibitem{jacoco} Mountainminds y EclEmma, ``JaCoCo Java Code Coverage Library.'' [En línea]. Disponible: \url{https://www.jacoco.org/jacoco/}
+\bibitem{k6} Grafana Labs, ``Grafana k6 documentation.'' [En línea]. Disponible: \url{https://grafana.com/docs/k6/latest/}
+\bibitem{gemini} Google, ``Gemini API documentation.'' [En línea]. Disponible: \url{https://ai.google.dev/gemini-api/docs}
+\bibitem{nager} Nager.Date, ``Worldwide public holiday API.'' [En línea]. Disponible: \url{https://date.nager.at}
+\bibitem{telegram} Telegram, ``Telegram Bot API.'' [En línea]. Disponible: \url{https://core.telegram.org/bots/api}
+\end{thebibliography}
+
+\end{document}

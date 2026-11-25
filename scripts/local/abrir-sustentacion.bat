@@ -24,4 +24,4 @@ if defined IDEA (
 )
 
 rem 4) Terminal lista para correr las pruebas en vivo
-start "Pruebas MediAgenda" cmd /k "cd /d "%RAIZ%" && echo. && echo Para correr las 239 pruebas en vivo escribe:  ejecutar-todas-las-pruebas.bat && echo."
+start "Pruebas MediAgenda" cmd /k "cd /d "%RAIZ%" && echo. && echo Para correr las 264 pruebas en vivo escribe:  scripts\local\ejecutar-todas-las-pruebas.bat && echo."

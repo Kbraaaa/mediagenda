@@ -1,6 +1,6 @@
 # Corre las pruebas de k6 EN el servidor (con Docker, sin instalar nada) y trae los resultados.
 # Desde el propio servidor se mide la aplicacion sin el retraso de internet Colombia-Ohio.
-# Uso: correr-k6-aws.bat [concurrencia|carga|estres|todas]   (por defecto: todas, ~15 minutos)
+# Uso: scripts\aws\correr-k6-aws.bat [concurrencia|carga|estres|todas]   (por defecto: todas, ~15 minutos)
 param([string]$Prueba = "todas", [string]$Ip = "3.139.58.88")
 $ErrorActionPreference = "Continue"
 $raiz = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path

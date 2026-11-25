@@ -1,5 +1,5 @@
 # Migra las 4 bases de MediAgenda del contenedor postgres de la EC2 a Amazon RDS, sin perder datos.
-# Uso: migrar-a-rds.bat <endpoint de RDS>   (el endpoint lo imprime infra/aws/crear-rds.sh)
+# Uso: scripts\aws\migrar-a-rds.bat <endpoint de RDS>   (el endpoint lo imprime infra/aws/crear-rds.sh)
 param([Parameter(Mandatory = $true)][string]$Endpoint, [string]$Ip = "3.139.58.88")
 $ErrorActionPreference = "Continue"
 $raiz = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
@@ -60,4 +60,4 @@ $lineas = @(Get-Content $envServidor | Where-Object { $_ -notmatch '^(DB_HOST|CO
 Anotar "3/3 Desplegando con RDS..."
 & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot "desplegar.ps1") -Ip $Ip | Out-Host
 & ssh @ssh $destino "docker stop mediagenda-postgres-1 >/dev/null 2>&1; docker ps --format '{{.Names}}'" 2>&1 | ForEach-Object { Anotar "   corriendo: $_" }
-Anotar "Listo. Para volver al contenedor: quitar DB_HOST del .env del servidor y correr desplegar-aws.bat."
+Anotar "Listo. Para volver al contenedor: quitar DB_HOST del .env del servidor y correr scripts\aws\desplegar-aws.bat."

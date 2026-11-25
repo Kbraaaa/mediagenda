@@ -1,6 +1,8 @@
 # CI/CD de MediAgenda.
 #  - pruebas: en cada push o pull request compila y prueba cada microservicio (JaCoCo >= 90 % o falla).
-#  - imagenes: solo en push a main y si las pruebas pasaron: construye las 4 imagenes y las sube a ECR.
+#  - interfaz: instala y compila la interfaz web (React) para detectar errores antes de publicar.
+#  - imagenes: solo en push a main y si todo paso: construye las 4 imagenes de servicios y la de la interfaz
+#    (nginx + React) y las sube a ECR.
 #  - despliegue: le ordena a la EC2 (AWS Systems Manager, sin SSH) descargar las imagenes nuevas y reiniciar.
 # GitHub entra a AWS con OIDC: un rol temporal que solo puede asumir este repositorio desde main.
 name: CI/CD
@@ -37,8 +39,23 @@ jobs:
           name: cobertura-${{ matrix.servicio }}
           path: ${{ matrix.servicio }}/target/site/jacoco/
 
+  interfaz:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run build
+
   imagenes:
-    needs: pruebas
+    needs: [pruebas, interfaz]
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && vars.AWS_ROLE_ARN != ''
     runs-on: ubuntu-latest
     permissions:
@@ -46,7 +63,7 @@ jobs:
       contents: read
     strategy:
       matrix:
-        servicio: [ms-pacientes, ms-citas, ms-farmacia, ms-notificaciones]
+        servicio: [ms-pacientes, ms-citas, ms-farmacia, ms-notificaciones, frontend]
     steps:
       - uses: actions/checkout@v4
       - uses: aws-actions/configure-aws-credentials@v4
@@ -68,7 +85,7 @@ jobs:
       contents: read
     environment:
       name: aws
-      url: http://3.139.58.88/api/v1/medicamentos
+      url: http://3.139.58.88/
     steps:
       - uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -83,10 +100,10 @@ jobs:
             "cd /home/ec2-user/mediagenda",
             "aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${REG%%/*}",
             "export ECR_REGISTRO=${REG}",
-            "docker compose -f docker-compose.aws.yml pull ms-pacientes ms-citas ms-farmacia ms-notificaciones",
+            "docker compose -f docker-compose.aws.yml pull ms-pacientes ms-citas ms-farmacia ms-notificaciones nginx",
             "docker compose -f docker-compose.aws.yml up -d --no-build",
             "docker compose -f docker-compose.aws.yml restart nginx",
-            "for i in \$(seq 1 40); do ok=0; for r in pacientes medicos medicamentos notificaciones; do curl -fs -o /dev/null http://localhost/api/v1/\$r && ok=\$((ok+1)); done; [ \$ok -eq 4 ] && echo DESPLEGADO OK && exit 0; sleep 5; done; echo SOLO \$ok DE 4 SERVICIOS; exit 1"
+            "for i in \$(seq 1 40); do ok=0; for r in pacientes medicos medicamentos notificaciones; do curl -fs -o /dev/null http://localhost/api/v1/\$r && ok=\$((ok+1)); done; [ \$ok -eq 4 ] && curl -fs -o /dev/null http://localhost/ && echo DESPLEGADO OK && exit 0; sleep 5; done; echo SOLO \$ok DE 4 SERVICIOS; exit 1"
           ]}
           JSON
           ID=$(aws ssm send-command --instance-ids ${{ vars.EC2_INSTANCE_ID }} --document-name AWS-RunShellScript \
