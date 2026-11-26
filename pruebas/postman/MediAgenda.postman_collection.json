@@ -140,6 +140,62 @@
     {
       "key": "codigoFormula4",
       "value": ""
+    },
+    {
+      "key": "fechaFestivo",
+      "value": ""
+    },
+    {
+      "key": "idTarde1",
+      "value": ""
+    },
+    {
+      "key": "idTarde2",
+      "value": ""
+    },
+    {
+      "key": "idTarde3",
+      "value": ""
+    },
+    {
+      "key": "codigoTel1",
+      "value": ""
+    },
+    {
+      "key": "codigoTel2",
+      "value": ""
+    },
+    {
+      "key": "codigoTel3",
+      "value": ""
+    },
+    {
+      "key": "codigoCitaTel1",
+      "value": ""
+    },
+    {
+      "key": "codigoCitaTel2",
+      "value": ""
+    },
+    {
+      "key": "codigoCitaTel3",
+      "value": ""
+    },
+    {
+      "key": "correoTel1",
+      "value": ""
+    },
+    {
+      "key": "correoTel2",
+      "value": ""
+    },
+    {
+      "key": "correoTel3",
+      "value": ""
+    },
+    {
+      "key": "intentosCelular",
+      "value": ""
     }
   ],
   "item": [
@@ -1763,7 +1819,10 @@
                   "const avisos = pm.response.json().contenido;",
                   "const n = Number(pm.collectionVariables.get(\"intentosAvisos\"));",
                   "const pendientes = avisos.filter(a => a.estado === \"PENDIENTE\").length;",
-                  "if ((pendientes > 0 || avisos.length < 5) && n < 15) {",
+                  "const esperados = [\"cita.agendada\", \"cita.cancelada\", \"formula.dispensada\"];",
+                  "const faltan = esperados.filter(t => !avisos.some(a => a.tipo === t));",
+                  "// Los eventos llegan por SQS en segundo plano: espera hasta ver los tres tipos y ninguno PENDIENTE",
+                  "if ((pendientes > 0 || faltan.length > 0) && n < 20) {",
                   "  pm.collectionVariables.set(\"intentosAvisos\", n + 1);",
                   "  postman.setNextRequest(pm.info.requestName);",
                   "} else {",
@@ -4532,6 +4591,1257 @@
                 "exec": [
                   "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
                   "pm.test(\"Informa cuantos reintento\", () => pm.expect(pm.response.json().reintentadas).to.be.a(\"number\").and.at.least(0));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "8. Validaciones adicionales y formatos de celular",
+      "description": "Reglas de validacion que no tenian peticion (largos maximos, campos obligatorios, paginacion, festivo, filtros) y avisos al celular con distintos formatos de numero (+57, 57 y fijo).",
+      "item": [
+        {
+          "name": "8.1 Paciente sin tipo de documento -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/pacientes",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipoDocumento\": null,\n  \"numeroDocumento\": \"40{{sufijo}}\",\n  \"nombres\": \"Ana\",\n  \"apellidos\": \"Prueba Borde\",\n  \"correo\": \"val{{sufijo}}@correo.com\",\n  \"telefono\": \"3101234567\",\n  \"fechaNacimiento\": \"1990-01-01\",\n  \"tipoSangre\": \"A+\",\n  \"alergias\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Codigo de error PETICION_INVALIDA\", () => pm.expect(pm.response.json().codigo).to.eql(\"PETICION_INVALIDA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "8.2 Paciente sin numero de documento -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/pacientes",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipoDocumento\": \"CC\",\n  \"numeroDocumento\": null,\n  \"nombres\": \"Ana\",\n  \"apellidos\": \"Prueba Borde\",\n  \"correo\": \"val{{sufijo}}@correo.com\",\n  \"telefono\": \"3101234567\",\n  \"fechaNacimiento\": \"1990-01-01\",\n  \"tipoSangre\": \"A+\",\n  \"alergias\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Codigo de error PETICION_INVALIDA\", () => pm.expect(pm.response.json().codigo).to.eql(\"PETICION_INVALIDA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "8.3 Nombres de mas de 80 caracteres -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/pacientes",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipoDocumento\": \"CC\",\n  \"numeroDocumento\": \"41{{sufijo}}\",\n  \"nombres\": \"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\",\n  \"apellidos\": \"Prueba Borde\",\n  \"correo\": \"val{{sufijo}}@correo.com\",\n  \"telefono\": \"3101234567\",\n  \"fechaNacimiento\": \"1990-01-01\",\n  \"tipoSangre\": \"A+\",\n  \"alergias\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Codigo de error PETICION_INVALIDA\", () => pm.expect(pm.response.json().codigo).to.eql(\"PETICION_INVALIDA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "8.4 Correo de mas de 120 caracteres -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/pacientes",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipoDocumento\": \"CC\",\n  \"numeroDocumento\": \"42{{sufijo}}\",\n  \"nombres\": \"Ana\",\n  \"apellidos\": \"Prueba Borde\",\n  \"correo\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@correo.com\",\n  \"telefono\": \"3101234567\",\n  \"fechaNacimiento\": \"1990-01-01\",\n  \"tipoSangre\": \"A+\",\n  \"alergias\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Codigo de error PETICION_INVALIDA\", () => pm.expect(pm.response.json().codigo).to.eql(\"PETICION_INVALIDA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "8.5 Registrar con el correo de otro paciente -> 409",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/pacientes",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipoDocumento\": \"CC\",\n  \"numeroDocumento\": \"43{{sufijo}}\",\n  \"nombres\": \"Ana\",\n  \"apellidos\": \"Prueba Borde\",\n  \"correo\": \"{{correoPaciente}}\",\n  \"telefono\": \"3101234567\",\n  \"fechaNacimiento\": \"1990-01-01\",\n  \"tipoSangre\": \"A+\",\n  \"alergias\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"Codigo de error PACIENTE_DUPLICADO\", () => pm.expect(pm.response.json().codigo).to.eql(\"PACIENTE_DUPLICADO\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "8.6 Actualizar con el correo de otro paciente -> 409",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/pacientes/{{codigoTi}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipoDocumento\": \"CC\",\n  \"numeroDocumento\": \"14{{sufijo}}\",\n  \"nombres\": \"Mateo\",\n  \"apellidos\": \"Ruiz Castro\",\n  \"correo\": \"{{correoPaciente}}\",\n  \"telefono\": \"3101234567\",\n  \"fechaNacimiento\": \"2007-01-10\",\n  \"tipoSangre\": \"O-\",\n  \"alergias\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"Codigo de error PACIENTE_DUPLICADO\", () => pm.expect(pm.response.json().codigo).to.eql(\"PACIENTE_DUPLICADO\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "8.7 Pacientes con pagina de mas de 100 -> 400",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/pacientes?size=101"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Codigo de error PETICION_INVALIDA\", () => pm.expect(pm.response.json().codigo).to.eql(\"PETICION_INVALIDA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "8.8 Pacientes con pagina no numerica -> 400",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/pacientes?page=abc"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Codigo de error PETICION_INVALIDA\", () => pm.expect(pm.response.json().codigo).to.eql(\"PETICION_INVALIDA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "8.9 Medico sin especialidad -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/medicos",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Dr. Sin Especialidad\",\n  \"especialidad\": \"\",\n  \"correo\": \"sinesp{{sufijo}}@mediagenda.co\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Codigo de error PETICION_INVALIDA\", () => pm.expect(pm.response.json().codigo).to.eql(\"PETICION_INVALIDA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "8.10 Agenda sin fecha -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/medicos/{{codigoMedico}}/franjas",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"horaInicio\": \"18:00\",\n  \"horaFin\": \"19:00\",\n  \"duracionMinutos\": 30\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Codigo de error PETICION_INVALIDA\", () => pm.expect(pm.response.json().codigo).to.eql(\"PETICION_INVALIDA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "8.11 Agenda que no alcanza para una franja -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/medicos/{{codigoMedico}}/franjas",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fecha\": \"{{fechaAgenda}}\",\n  \"horaInicio\": \"18:00\",\n  \"horaFin\": \"18:10\",\n  \"duracionMinutos\": 30\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Codigo de error PETICION_INVALIDA\", () => pm.expect(pm.response.json().codigo).to.eql(\"PETICION_INVALIDA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "8.12 Agenda el 8 de diciembre (festivo) -> 422",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/medicos/{{codigoMedico}}/franjas",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fecha\": \"{{fechaFestivo}}\",\n  \"horaInicio\": \"08:00\",\n  \"horaFin\": \"09:00\",\n  \"duracionMinutos\": 30\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Proximo 8 de diciembre (Inmaculada Concepcion, festivo fijo en Colombia)",
+                  "const hoy = new Date();",
+                  "let anio = hoy.getFullYear();",
+                  "if (hoy > new Date(anio, 11, 8)) anio++;",
+                  "pm.collectionVariables.set(\"fechaFestivo\", `${anio}-12-08`);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 422\", () => pm.response.to.have.status(422));",
+                  "pm.test(\"Codigo de error DIA_FESTIVO\", () => pm.expect(pm.response.json().codigo).to.eql(\"DIA_FESTIVO\"));",
+                  "pm.test(\"Consulto Nager.Date y explica el motivo\", () => pm.expect(pm.response.json().mensaje).to.include(\"festivo\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "8.13 Agendar sin franja -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/citas",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigoPaciente\": \"{{codigoPaciente}}\",\n  \"sintomas\": \"Dolor de garganta desde ayer\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Codigo de error PETICION_INVALIDA\", () => pm.expect(pm.response.json().codigo).to.eql(\"PETICION_INVALIDA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "8.14 Citas con estado invalido -> 400",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/citas?estado=PERDIDA"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Codigo de error PETICION_INVALIDA\", () => pm.expect(pm.response.json().codigo).to.eql(\"PETICION_INVALIDA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "8.15 Citas atendidas del medico",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/citas?medico={{codigoMedico}}&estado=ATENDIDA"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const p = pm.response.json();",
+                  "pm.test(\"Solo citas ATENDIDA de ese medico\", () => p.contenido.forEach(c => {",
+                  "  pm.expect(c.estado).to.eql(\"ATENDIDA\");",
+                  "  pm.expect(c.franja.codigoMedico).to.eql(pm.collectionVariables.get(\"codigoMedico\"));",
+                  "}));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "8.16 Citas con pagina negativa -> 400",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/citas?page=-1"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Codigo de error PETICION_INVALIDA\", () => pm.expect(pm.response.json().codigo).to.eql(\"PETICION_INVALIDA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "8.17 Citas con pagina de mas de 100 -> 400",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/citas?size=101"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Codigo de error PETICION_INVALIDA\", () => pm.expect(pm.response.json().codigo).to.eql(\"PETICION_INVALIDA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "8.18 Abrir agenda de la tarde (para los celulares)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/medicos/{{codigoMedico}}/franjas",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fecha\": \"{{fechaAgenda}}\",\n  \"horaInicio\": \"14:00\",\n  \"horaFin\": \"15:30\",\n  \"duracionMinutos\": 30\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 201\", () => pm.response.to.have.status(201));",
+                  "const f = pm.response.json();",
+                  "pm.test(\"Crea 3 franjas\", () => pm.expect(f).to.have.lengthOf(3));",
+                  "f.forEach((x, i) => pm.collectionVariables.set(\"idTarde\" + (i + 1), x.idFranja));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "8.19 Paciente con telefono internacional (+57...)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/pacientes",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipoDocumento\": \"CC\",\n  \"numeroDocumento\": \"51{{sufijo}}\",\n  \"nombres\": \"Tel1\",\n  \"apellidos\": \"Prueba Borde\",\n  \"correo\": \"{{correoTel1}}\",\n  \"telefono\": \"+573151234567\",\n  \"fechaNacimiento\": \"1990-01-01\",\n  \"tipoSangre\": \"A+\",\n  \"alergias\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Correos del simulador de SES (en AWS) o del correo base del entorno, distintos por paciente",
+                  "const base = pm.environment.get(\"correoBase\") || \"laura@correo.com\";",
+                  "const [usuario, dominio] = base.split(\"@\");",
+                  "const s = pm.collectionVariables.get(\"sufijo\");",
+                  "[1, 2, 3].forEach(n => pm.collectionVariables.set(\"correoTel\" + n, `${usuario}+tel${n}${s}@${dominio}`));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 201\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"codigoTel1\", pm.response.json().codigo);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "8.20 Paciente con telefono con 57 sin el +",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/pacientes",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipoDocumento\": \"CC\",\n  \"numeroDocumento\": \"52{{sufijo}}\",\n  \"nombres\": \"Tel2\",\n  \"apellidos\": \"Prueba Borde\",\n  \"correo\": \"{{correoTel2}}\",\n  \"telefono\": \"573161234567\",\n  \"fechaNacimiento\": \"1990-01-01\",\n  \"tipoSangre\": \"A+\",\n  \"alergias\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 201\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"codigoTel2\", pm.response.json().codigo);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "8.21 Paciente con telefono fijo: no recibe aviso al celular",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/pacientes",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipoDocumento\": \"CC\",\n  \"numeroDocumento\": \"53{{sufijo}}\",\n  \"nombres\": \"Tel3\",\n  \"apellidos\": \"Prueba Borde\",\n  \"correo\": \"{{correoTel3}}\",\n  \"telefono\": \"6012345678\",\n  \"fechaNacimiento\": \"1990-01-01\",\n  \"tipoSangre\": \"A+\",\n  \"alergias\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 201\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"codigoTel3\", pm.response.json().codigo);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "8.22 Agendar cita del paciente con telefono internacional (+57...)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/citas",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigoPaciente\": \"{{codigoTel1}}\",\n  \"idFranja\": {{idTarde1}},\n  \"sintomas\": \"Control general y revision de examenes\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 201\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"codigoCitaTel1\", pm.response.json().codigo);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "8.23 Agendar cita del paciente con telefono con 57 sin el +",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/citas",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigoPaciente\": \"{{codigoTel2}}\",\n  \"idFranja\": {{idTarde2}},\n  \"sintomas\": \"Control general y revision de examenes\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 201\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"codigoCitaTel2\", pm.response.json().codigo);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "8.24 Agendar cita del paciente con telefono fijo: no recibe aviso al celular",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/citas",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigoPaciente\": \"{{codigoTel3}}\",\n  \"idFranja\": {{idTarde3}},\n  \"sintomas\": \"Control general y revision de examenes\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 201\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"codigoCitaTel3\", pm.response.json().codigo);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "8.25 Reprogramar sin franja -> 400",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/citas/{{codigoCitaTel1}}/reprogramacion",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Codigo de error PETICION_INVALIDA\", () => pm.expect(pm.response.json().codigo).to.eql(\"PETICION_INVALIDA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "8.26 Reprogramar a la misma franja -> 400",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/citas/{{codigoCitaTel1}}/reprogramacion",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idFranja\": {{idTarde1}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Codigo de error PETICION_INVALIDA\", () => pm.expect(pm.response.json().codigo).to.eql(\"PETICION_INVALIDA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "8.27 Cancelar la cita del telefono internacional (+57...)",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/citas/{{codigoCitaTel1}}/cancelacion"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Queda CANCELADA\", () => pm.expect(pm.response.json().estado).to.eql(\"CANCELADA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "8.28 Cancelar la cita del telefono con 57 sin el +",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/citas/{{codigoCitaTel2}}/cancelacion"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Queda CANCELADA\", () => pm.expect(pm.response.json().estado).to.eql(\"CANCELADA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "8.29 Cancelar la cita del telefono fijo: no recibe aviso al celular",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/citas/{{codigoCitaTel3}}/cancelacion"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Queda CANCELADA\", () => pm.expect(pm.response.json().estado).to.eql(\"CANCELADA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "8.30 Avisos al celular normalizados a +57",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/notificaciones?paciente={{codigoTel2}}&size=20"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Los avisos llegan por SQS en segundo plano: se repite cada 3 s hasta que esten todos (maximo ~60 s)",
+                  "const n = Number(pm.collectionVariables.get(\"intentosCelular\") || 0);",
+                  "setTimeout(() => {}, n > 0 ? 3000 : 1000);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const avisos = pm.response.json().contenido;",
+                  "const n = Number(pm.collectionVariables.get(\"intentosCelular\") || 0);",
+                  "const pendientes = avisos.filter(a => a.estado === \"PENDIENTE\").length;",
+                  "// Agendada + cancelada, por correo (y por celular si el entorno lo tiene): al menos 2 avisos",
+                  "if ((avisos.length < 2 || pendientes > 0) && n < 20) {",
+                  "  pm.collectionVariables.set(\"intentosCelular\", n + 1);",
+                  "  postman.setNextRequest(pm.info.requestName);",
+                  "} else {",
+                  "  pm.collectionVariables.set(\"intentosCelular\", 0);",
+                  "  pm.test(\"Llegaron los avisos de la cita agendada y cancelada\", () => pm.expect(avisos.length).to.be.at.least(2));",
+                  "  const sms = avisos.filter(a => a.canal === \"SMS\");",
+                  "  if (pm.environment.get(\"telefonoPaciente\")) {",
+                  "    pm.test(\"Hay avisos al celular\", () => pm.expect(sms.length).to.be.above(0));",
+                  "    pm.test(\"El celular 573... se envio como +573...\", () => sms.forEach(a => pm.expect(a.destinatario).to.match(/^\\+573\\d{9}$/)));",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "8.31 Paciente con telefono fijo no recibe avisos al celular",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/notificaciones?paciente={{codigoTel3}}&size=20"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const avisos = pm.response.json().contenido;",
+                  "pm.test(\"Recibio avisos por correo\", () => pm.expect(avisos.filter(a => a.canal === \"CORREO\").length).to.be.above(0));",
+                  "pm.test(\"Ninguno al celular (telefono fijo)\", () => avisos.forEach(a => pm.expect(a.canal).to.eql(\"CORREO\")));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "8.32 Medicamento sin stock -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/medicamentos",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Cetirizina {{sufijo}}\",\n  \"presentacion\": \"Tableta 10 mg\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Codigo de error PETICION_INVALIDA\", () => pm.expect(pm.response.json().codigo).to.eql(\"PETICION_INVALIDA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "8.33 Medicamento con nombre de mas de 120 caracteres -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/medicamentos",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM\",\n  \"presentacion\": \"Tableta 10 mg\",\n  \"stock\": 5\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Codigo de error PETICION_INVALIDA\", () => pm.expect(pm.response.json().codigo).to.eql(\"PETICION_INVALIDA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "8.34 Medicamento con JSON malformado -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/medicamentos",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"nombre\": \"sin cerrar\"",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Codigo de error PETICION_INVALIDA\", () => pm.expect(pm.response.json().codigo).to.eql(\"PETICION_INVALIDA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "8.35 Consultar medicamento inexistente -> 404",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/medicamentos/MDT-9999"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Codigo de error MEDICAMENTO_NO_ENCONTRADO\", () => pm.expect(pm.response.json().codigo).to.eql(\"MEDICAMENTO_NO_ENCONTRADO\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "8.36 Medicamentos con pagina negativa -> 400",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/medicamentos?page=-1"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Codigo de error PETICION_INVALIDA\", () => pm.expect(pm.response.json().codigo).to.eql(\"PETICION_INVALIDA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "8.37 Medicamentos con pagina de mas de 100 -> 400",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/medicamentos?size=101"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Codigo de error PETICION_INVALIDA\", () => pm.expect(pm.response.json().codigo).to.eql(\"PETICION_INVALIDA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "8.38 Formula con un medicamento vacio -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/formulas",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigoCita\": \"{{codigoCita3}}\",\n  \"items\": [\n    null\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Codigo de error PETICION_INVALIDA\", () => pm.expect(pm.response.json().codigo).to.eql(\"PETICION_INVALIDA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "8.39 Formula con indicaciones de mas de 300 caracteres -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/formulas",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigoCita\": \"{{codigoCita3}}\",\n  \"items\": [\n    {\n      \"codigoMedicamento\": \"{{codigoMedicamento}}\",\n      \"cantidad\": 1,\n      \"indicaciones\": \"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Codigo de error PETICION_INVALIDA\", () => pm.expect(pm.response.json().codigo).to.eql(\"PETICION_INVALIDA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "8.40 Aviso manual con asunto de mas de 200 caracteres -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/notificaciones",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"destinatario\": \"{{correoPaciente}}\",\n  \"asunto\": \"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\",\n  \"cuerpo\": \"Prueba\",\n  \"codigoPaciente\": \"{{codigoPaciente}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Codigo de error PETICION_INVALIDA\", () => pm.expect(pm.response.json().codigo).to.eql(\"PETICION_INVALIDA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "8.41 Avisos con pagina de mas de 100 -> 400",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/notificaciones?size=101"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Codigo de error PETICION_INVALIDA\", () => pm.expect(pm.response.json().codigo).to.eql(\"PETICION_INVALIDA\"));"
                 ]
               }
             }

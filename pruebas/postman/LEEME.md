@@ -2,13 +2,13 @@
 
 | Archivo | Qué es |
 | --- | --- |
-| `MediAgenda.postman_collection.json` | 148 peticiones en 7 carpetas: una por microservicio, casos borde y operaciones de negocio |
+| `MediAgenda.postman_collection.json` | 189 peticiones en 8 carpetas: una por microservicio, casos borde, operaciones de negocio y validaciones adicionales |
 | `MediAgenda-AWS.postman_environment.json` | API desplegada en AWS: `http://3.139.58.88` |
 | `MediAgenda-Local.postman_environment.json` | Docker en tu equipo: `http://localhost:8000` |
 | `correr-postman.bat` | Corre la colección con Newman (`correr-postman.bat AWS` para el entorno de AWS) |
 
 Cada petición verifica el código HTTP, los datos de la respuesta y que tarde menos de 500 ms.
-Última corrida contra AWS (117 peticiones, antes de la carpeta 7): 473 de 473 verificaciones, promedio 109 ms, máximo 446 ms.
+Última corrida contra AWS (26 nov): 772 de 772 verificaciones, promedio 107 ms, máximo 268 ms.
 
 ## Abrirlas en Postman
 

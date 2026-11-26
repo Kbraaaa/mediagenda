@@ -12,7 +12,7 @@ Proyecto final de **Profundización de Software** (Universidad de Cundinamarca).
 
 La interfaz web (React, carpeta `frontend/`) se sirve desde el mismo nginx que enruta las APIs: **http://3.139.58.88**.
 
-Los 4 microservicios tienen pruebas unitarias (351 en total) con cobertura de líneas del 100 %.
+Los 4 microservicios tienen pruebas unitarias (351 en total) con cobertura de líneas entre 99,8 % y 100 %.
 
 **Tecnologías:** Java 21, Spring Boot 4.1, React 19 + Vite, PostgreSQL 17, Flyway, Lombok, RabbitMQ, Docker Compose, Nginx,
 AWS (EC2, SQS, SES, RDS, ECR, Systems Manager), Telegram Bot API, GitHub Actions, k6, JUnit 5, Mockito, AssertJ, JaCoCo y Postman/Newman.
@@ -21,7 +21,7 @@ AWS (EC2, SQS, SES, RDS, ECR, Systems Manager), Telegram Bot API, GitHub Actions
 
 | | |
 | --- | --- |
-| Colección (148 peticiones) | [`pruebas/postman/MediAgenda.postman_collection.json`](pruebas/postman/MediAgenda.postman_collection.json) |
+| Colección (189 peticiones) | [`pruebas/postman/MediAgenda.postman_collection.json`](pruebas/postman/MediAgenda.postman_collection.json) |
 | Entorno AWS (`http://3.139.58.88`) | [`pruebas/postman/MediAgenda-AWS.postman_environment.json`](pruebas/postman/MediAgenda-AWS.postman_environment.json) |
 | Entorno local (Docker) | [`pruebas/postman/MediAgenda-Local.postman_environment.json`](pruebas/postman/MediAgenda-Local.postman_environment.json) |
 | Guía completa | [`pruebas/postman/LEEME.md`](pruebas/postman/LEEME.md) |
@@ -31,7 +31,7 @@ AWS (EC2, SQS, SES, RDS, ECR, Systems Manager), Telegram Bot API, GitHub Actions
 3. Arriba a la derecha elige el entorno **MediAgenda - AWS**.
 4. Clic derecho en la colección → **Run collection** → **Run** (las peticiones van en orden: cada una usa los códigos que crea la anterior).
 
-Última corrida contra AWS: **473 de 473 verificaciones**, promedio 109 ms, máximo 446 ms (todas bajo 500 ms).
+Última corrida contra AWS (26 nov): **772 de 772 verificaciones**, 189 peticiones, promedio 107 ms, máximo 268 ms (todas bajo 500 ms).
 
 ## Operaciones de negocio (además del CRUD)
 
@@ -130,6 +130,8 @@ Los servicios usan SQS, SES y ECR sin claves: los permisos vienen del rol de IAM
 | Carga, estrés y concurrencia | `scripts/aws/correr-k6-aws.bat` | `pruebas/k6/resultados/` |
 
 **Si la cobertura de líneas o instrucciones de JaCoCo baja del 90 %, el build falla.**
+
+Cobertura con las APIs desplegadas en AWS (26 nov, Postman contra el servidor): **92,7 %** del código activo en AWS, y cada microservicio por encima del 90 % (86,5 % de todo el código, incluidos los adaptadores que solo se usan en local).
 GitHub Actions (`.github/workflows/ci.yml`) corre las pruebas de los 4 servicios en cada push a `main`.
 
 ## APIs
