@@ -5,12 +5,14 @@ import com.mediagenda.notificaciones.domain.model.gateway.NotificacionGateway;
 import com.mediagenda.notificaciones.domain.model.gateway.SmsGateway;
 import com.mediagenda.notificaciones.domain.model.gateway.SolicitudEnvioGateway;
 import com.mediagenda.notificaciones.domain.usecase.ConsultarNotificacionUseCase;
+import com.mediagenda.notificaciones.domain.usecase.CorregirDestinatarioUseCase;
 import com.mediagenda.notificaciones.domain.usecase.CrearNotificacionManualUseCase;
 import com.mediagenda.notificaciones.domain.usecase.Despachador;
 import com.mediagenda.notificaciones.domain.usecase.EnviarPendienteUseCase;
 import com.mediagenda.notificaciones.domain.usecase.ListarNotificacionesUseCase;
 import com.mediagenda.notificaciones.domain.usecase.MarcarLeidaUseCase;
 import com.mediagenda.notificaciones.domain.usecase.ProcesarEventoUseCase;
+import com.mediagenda.notificaciones.domain.usecase.ReenviarNotificacionUseCase;
 import com.mediagenda.notificaciones.domain.usecase.ReintentarFallidasUseCase;
 import com.mediagenda.notificaciones.domain.usecase.ReintentarNotificacionUseCase;
 import org.springframework.beans.factory.annotation.Value;
@@ -68,5 +70,16 @@ public class UseCasesConfig {
     public ReintentarFallidasUseCase reintentarFallidasUseCase(NotificacionGateway n, Despachador d,
                                                                @Value("${notificaciones.intentos-maximos:3}") int max) {
         return new ReintentarFallidasUseCase(n, d, max);
+    }
+
+    @Bean
+    public ReenviarNotificacionUseCase reenviarNotificacionUseCase(NotificacionGateway n, SolicitudEnvioGateway s,
+                                                                   Despachador d) {
+        return new ReenviarNotificacionUseCase(n, s, d);
+    }
+
+    @Bean
+    public CorregirDestinatarioUseCase corregirDestinatarioUseCase(NotificacionGateway n, SolicitudEnvioGateway s) {
+        return new CorregirDestinatarioUseCase(n, s);
     }
 }

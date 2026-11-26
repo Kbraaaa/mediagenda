@@ -21,7 +21,7 @@ foreach ($f in Get-ChildItem (Join-Path $raiz "pruebas\k6") -Filter *.js) { & sc
 foreach ($p in $pruebas) {
     Write-Host "`n===== Prueba de $p (en el servidor) =====" -ForegroundColor Cyan
     $cmd = 'docker run --rm --network host -u $(id -u):$(id -g) -v ~/k6:/scripts -e BASE_URL=http://localhost ' +
-           "grafana/k6 run --quiet /scripts/$p.js"
+           "-e K6_WEB_DASHBOARD=true -e K6_WEB_DASHBOARD_EXPORT=/scripts/resultados/$p.panel.html grafana/k6 run --quiet /scripts/$p.js"
     & ssh @ssh $destino $cmd 2>&1 | Out-Host
     & scp @ssh "${destino}:k6/resultados/$p.*" $local
 }

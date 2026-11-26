@@ -21,6 +21,7 @@ import com.mediagenda.citas.domain.usecase.ListarMedicosUseCase;
 import com.mediagenda.citas.domain.usecase.ProcesarTriageUseCase;
 import com.mediagenda.citas.domain.usecase.RegistrarMedicoUseCase;
 import com.mediagenda.citas.domain.usecase.ReglasAgenda;
+import com.mediagenda.citas.domain.usecase.ReintentarTriageUseCase;
 import com.mediagenda.citas.domain.usecase.ReprogramarCitaUseCase;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -105,5 +106,10 @@ public class UseCasesConfig {
     public EnviarRecordatoriosUseCase enviarRecordatoriosUseCase(CitaGateway citas, EventoGateway eventos,
                                                                  ReglasAgenda reglas) {
         return new EnviarRecordatoriosUseCase(citas, eventos, reglas);
+    }
+
+    @Bean
+    public ReintentarTriageUseCase reintentarTriageUseCase(CitaGateway citas, SolicitudTriageGateway triage) {
+        return new ReintentarTriageUseCase(citas, triage);
     }
 }

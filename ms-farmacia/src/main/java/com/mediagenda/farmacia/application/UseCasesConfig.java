@@ -8,12 +8,14 @@ import com.mediagenda.farmacia.domain.model.gateway.TransaccionGateway;
 import com.mediagenda.farmacia.domain.usecase.AnularFormulaUseCase;
 import com.mediagenda.farmacia.domain.usecase.ConsultarFormulaUseCase;
 import com.mediagenda.farmacia.domain.usecase.ConsultarMedicamentoUseCase;
+import com.mediagenda.farmacia.domain.usecase.DarDeBajaMedicamentoUseCase;
 import com.mediagenda.farmacia.domain.usecase.DispensarFormulaUseCase;
 import com.mediagenda.farmacia.domain.usecase.EmitirFormulaUseCase;
 import com.mediagenda.farmacia.domain.usecase.ListarFormulasUseCase;
 import com.mediagenda.farmacia.domain.usecase.ListarMedicamentosUseCase;
 import com.mediagenda.farmacia.domain.usecase.ReabastecerMedicamentoUseCase;
 import com.mediagenda.farmacia.domain.usecase.RegistrarMedicamentoUseCase;
+import com.mediagenda.farmacia.domain.usecase.VerificarDisponibilidadUseCase;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -68,5 +70,15 @@ public class UseCasesConfig {
     @Bean
     public AnularFormulaUseCase anularFormulaUseCase(FormulaGateway f) {
         return new AnularFormulaUseCase(f);
+    }
+
+    @Bean
+    public DarDeBajaMedicamentoUseCase darDeBajaMedicamentoUseCase(MedicamentoGateway m, TransaccionGateway t) {
+        return new DarDeBajaMedicamentoUseCase(m, t);
+    }
+
+    @Bean
+    public VerificarDisponibilidadUseCase verificarDisponibilidadUseCase(FormulaGateway f) {
+        return new VerificarDisponibilidadUseCase(f);
     }
 }

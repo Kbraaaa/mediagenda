@@ -1,0 +1,11 @@
+Prueba: estres
+Peticiones: 358533 (746.5 por segundo)
+Tiempo de respuesta: promedio 60 ms, mediana 19 ms, p90 187 ms, p95 285 ms, maximo 1349 ms
+Errores HTTP inesperados: 0.00 %
+Usuarios virtuales maximos: 200
+Umbral http_req_duration{escalon:50} p(95)<500: CUMPLE
+Umbral http_req_duration{escalon:200} p(95)<500: CUMPLE
+Umbral http_req_duration{escalon:25} p(95)<500: CUMPLE
+Umbral http_req_duration{escalon:100} p(95)<500: CUMPLE
+Umbral http_req_duration{escalon:150} p(95)<500: CUMPLE
+Umbral http_req_failed rate<0.05: CUMPLE

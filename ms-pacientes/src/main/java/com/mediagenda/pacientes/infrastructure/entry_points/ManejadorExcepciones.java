@@ -1,6 +1,8 @@
 package com.mediagenda.pacientes.infrastructure.entry_points;
 
+import com.mediagenda.pacientes.domain.model.exception.ConflictoPacienteException;
 import com.mediagenda.pacientes.domain.model.exception.PacienteDuplicadoException;
+import com.mediagenda.pacientes.domain.model.exception.ReglaNegocioException;
 import com.mediagenda.pacientes.domain.model.exception.PacienteInactivoException;
 import com.mediagenda.pacientes.domain.model.exception.PacienteNoEncontradoException;
 import com.mediagenda.pacientes.infrastructure.entry_points.dto.ErrorRespuesta;
@@ -39,6 +41,16 @@ public class ManejadorExcepciones {
     }
 
     /** Dos registros simultaneos con el mismo documento: la restriccion UNIQUE de la base decide. */
+    @ExceptionHandler(ConflictoPacienteException.class)
+    public ResponseEntity<ErrorRespuesta> conflicto(ConflictoPacienteException e) {
+        return responder(HttpStatus.CONFLICT, e.getCodigoError(), e.getMessage());
+    }
+
+    @ExceptionHandler(ReglaNegocioException.class)
+    public ResponseEntity<ErrorRespuesta> reglaNegocio(ReglaNegocioException e) {
+        return responder(HttpStatus.UNPROCESSABLE_ENTITY, e.getCodigoError(), e.getMessage());
+    }
+
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ErrorRespuesta> integridad(DataIntegrityViolationException e) {
         return responder(HttpStatus.CONFLICT, "PACIENTE_DUPLICADO",

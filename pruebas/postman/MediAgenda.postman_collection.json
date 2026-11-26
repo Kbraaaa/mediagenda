@@ -128,6 +128,18 @@
     {
       "key": "estadoFallido",
       "value": ""
+    },
+    {
+      "key": "codigoTi",
+      "value": ""
+    },
+    {
+      "key": "codigoMenor",
+      "value": ""
+    },
+    {
+      "key": "codigoFormula4",
+      "value": ""
     }
   ],
   "item": [
@@ -3634,6 +3646,892 @@
                   "} else {",
                   "  pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
                   "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "7. Operaciones de negocio (no CRUD)",
+      "description": "5 operaciones de negocio por microservicio que no son el CRUD: reactivacion, alergias, cambio de documento y compatibilidad sanguinea (pacientes); nuevo triage (citas); bajas de inventario y disponibilidad (farmacia); reenvio, correccion de destinatario y reintento en lote (notificaciones). Usa los datos que crean las carpetas anteriores.",
+      "item": [
+        {
+          "name": "7.1 Reactivar paciente desactivado",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/pacientes/{{codigoTemporal}}/reactivacion"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const p = pm.response.json();",
+                  "pm.test(\"Vuelve a estar activo\", () => pm.expect(p.activo).to.be.true);",
+                  "pm.test(\"Conserva su codigo\", () => pm.expect(p.codigo).to.eql(pm.collectionVariables.get(\"codigoTemporal\")));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "7.2 Reactivar paciente ya activo -> 409",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/pacientes/{{codigoPaciente}}/reactivacion"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"Codigo de error PACIENTE_YA_ACTIVO\", () => pm.expect(pm.response.json().codigo).to.eql(\"PACIENTE_YA_ACTIVO\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "7.3 Registrar alergia nueva",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/pacientes/{{codigoPaciente}}/alergias",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"alergia\": \"Sulfas\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const p = pm.response.json();",
+                  "pm.test(\"Agrega la alergia sin borrar las anteriores\", () => {",
+                  "  pm.expect(p.alergias).to.include(\"Penicilina\");",
+                  "  pm.expect(p.alergias).to.include(\"Sulfas\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "7.4 Registrar la misma alergia en mayusculas -> 409",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/pacientes/{{codigoPaciente}}/alergias",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"alergia\": \"SULFAS\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"Codigo de error ALERGIA_YA_REGISTRADA\", () => pm.expect(pm.response.json().codigo).to.eql(\"ALERGIA_YA_REGISTRADA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "7.5 Registrar alergia vacia -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/pacientes/{{codigoPaciente}}/alergias",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"alergia\": \"  \"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Codigo de error PETICION_INVALIDA\", () => pm.expect(pm.response.json().codigo).to.eql(\"PETICION_INVALIDA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "7.6 Verificar alergia: amoxicilina (familia de la penicilina)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/pacientes/{{codigoPaciente}}/alergias/verificacion?sustancia=Amoxicilina"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const v = pm.response.json();",
+                  "pm.test(\"Alerta por reaccion cruzada\", () => pm.expect(v.alerta).to.be.true);",
+                  "pm.test(\"Explica la coincidencia\", () => pm.expect(v.coincidencias.join(\" \")).to.include(\"penicilinas\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "7.7 Verificar alergia sin coincidencias",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/pacientes/{{codigoPaciente}}/alergias/verificacion?sustancia=Loratadina"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const v = pm.response.json();",
+                  "pm.test(\"Sin alerta\", () => pm.expect(v.alerta).to.be.false);",
+                  "pm.test(\"Sin coincidencias\", () => pm.expect(v.coincidencias).to.be.empty);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "7.8 Registrar paciente mayor de edad con TI",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/pacientes",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipoDocumento\": \"TI\",\n  \"numeroDocumento\": \"13{{sufijo}}\",\n  \"nombres\": \"Mateo\",\n  \"apellidos\": \"Ruiz Castro\",\n  \"correo\": \"mateo{{sufijo}}@correo.com\",\n  \"telefono\": \"{{telefonoPaciente}}\",\n  \"fechaNacimiento\": \"2007-01-10\",\n  \"tipoSangre\": \"O-\",\n  \"alergias\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 201\", () => pm.response.to.have.status(201));",
+                  "const p = pm.response.json();",
+                  "pm.test(\"Queda con TI\", () => pm.expect(p.tipoDocumento).to.eql(\"TI\"));",
+                  "pm.collectionVariables.set(\"codigoTi\", p.codigo);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "7.9 Cambiar tarjeta de identidad por cedula",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/pacientes/{{codigoTi}}/cambio-documento",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"numeroDocumento\": \"14{{sufijo}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const p = pm.response.json();",
+                  "pm.test(\"Ahora tiene cedula\", () => {",
+                  "  pm.expect(p.tipoDocumento).to.eql(\"CC\");",
+                  "  pm.expect(p.numeroDocumento).to.eql(\"14\" + pm.collectionVariables.get(\"sufijo\"));",
+                  "});",
+                  "pm.test(\"Conserva su codigo\", () => pm.expect(p.codigo).to.eql(pm.collectionVariables.get(\"codigoTi\")));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "7.10 Cambiar documento de quien ya tiene CC -> 409",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/pacientes/{{codigoTi}}/cambio-documento",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"numeroDocumento\": \"15{{sufijo}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"Codigo de error DOCUMENTO_NO_ES_TI\", () => pm.expect(pm.response.json().codigo).to.eql(\"DOCUMENTO_NO_ES_TI\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "7.11 Registrar paciente menor de edad sin tipo de sangre",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/pacientes",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipoDocumento\": \"TI\",\n  \"numeroDocumento\": \"16{{sufijo}}\",\n  \"nombres\": \"Sara\",\n  \"apellidos\": \"Ruiz Castro\",\n  \"correo\": \"sara{{sufijo}}@correo.com\",\n  \"telefono\": \"{{telefonoPaciente}}\",\n  \"fechaNacimiento\": \"2014-03-09\",\n  \"tipoSangre\": null,\n  \"alergias\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 201\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"codigoMenor\", pm.response.json().codigo);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "7.12 Cambiar documento de un menor -> 422",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/pacientes/{{codigoMenor}}/cambio-documento",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"numeroDocumento\": \"17{{sufijo}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 422\", () => pm.response.to.have.status(422));",
+                  "pm.test(\"Codigo de error MENOR_DE_EDAD\", () => pm.expect(pm.response.json().codigo).to.eql(\"MENOR_DE_EDAD\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "7.13 Compatibilidad: O+ recibe de O- (compatible)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/pacientes/{{codigoPaciente}}/compatibilidad-sanguinea?donante={{codigoTi}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const c = pm.response.json();",
+                  "pm.test(\"Compatible\", () => pm.expect(c.compatible).to.be.true);",
+                  "pm.test(\"Informa ambos tipos\", () => { pm.expect(c.tipoSangreReceptor).to.eql(\"O+\"); pm.expect(c.tipoSangreDonante).to.eql(\"O-\"); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "7.14 Compatibilidad: O- recibe de O+ (no compatible)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/pacientes/{{codigoTi}}/compatibilidad-sanguinea?donante={{codigoPaciente}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const c = pm.response.json();",
+                  "pm.test(\"No compatible\", () => pm.expect(c.compatible).to.be.false);",
+                  "pm.test(\"Explica el motivo Rh\", () => pm.expect(c.explicacion).to.include(\"Rh\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "7.15 Compatibilidad con el mismo paciente -> 400",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/pacientes/{{codigoPaciente}}/compatibilidad-sanguinea?donante={{codigoPaciente}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "7.16 Compatibilidad con paciente sin tipo de sangre -> 422",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/pacientes/{{codigoPaciente}}/compatibilidad-sanguinea?donante={{codigoMenor}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 422\", () => pm.response.to.have.status(422));",
+                  "pm.test(\"Codigo de error TIPO_SANGRE_NO_REGISTRADO\", () => pm.expect(pm.response.json().codigo).to.eql(\"TIPO_SANGRE_NO_REGISTRADO\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "7.17 Volver a pedir triage de una cita atendida -> 409",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/citas/{{codigoCita}}/triage"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"Codigo de error CITA_NO_AGENDADA\", () => pm.expect(pm.response.json().codigo).to.eql(\"CITA_NO_AGENDADA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "7.18 Volver a pedir triage de cita inexistente -> 404",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/citas/CIT-2000-999999/triage"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 404\", () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "7.19 Dar de baja 5 unidades por vencimiento",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/medicamentos/{{codigoMedicamento}}/bajas",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cantidad\": 5,\n  \"motivo\": \"vencimiento\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test(\"Registra cantidad y motivo\", () => { pm.expect(b.cantidadDadaDeBaja).to.eql(5); pm.expect(b.motivo).to.eql(\"VENCIMIENTO\"); });",
+                  "pm.test(\"El stock sigue sin ser negativo\", () => pm.expect(b.stock).to.be.at.least(0));",
+                  "pm.collectionVariables.set(\"stockAntes\", b.stock);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "7.20 Dar de baja mas de lo que hay -> 409",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/medicamentos/{{codigoMedicamento}}/bajas",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cantidad\": 10000,\n  \"motivo\": \"DETERIORO\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"Codigo de error STOCK_INSUFICIENTE\", () => pm.expect(pm.response.json().codigo).to.eql(\"STOCK_INSUFICIENTE\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "7.21 Dar de baja con motivo invalido -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/medicamentos/{{codigoMedicamento}}/bajas",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cantidad\": 1,\n  \"motivo\": \"ROBO\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Codigo de error PETICION_INVALIDA\", () => pm.expect(pm.response.json().codigo).to.eql(\"PETICION_INVALIDA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "7.22 Emitir formula para revisar disponibilidad",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/formulas",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigoCita\": \"{{codigoCita3}}\",\n  \"items\": [\n    {\n      \"codigoMedicamento\": \"{{codigoMedicamento}}\",\n      \"cantidad\": 2,\n      \"indicaciones\": \"1 cada 12 horas\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 201\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"codigoFormula4\", pm.response.json().codigo);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "7.23 Verificar disponibilidad de la formula",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/formulas/{{codigoFormula4}}/disponibilidad"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const d = pm.response.json();",
+                  "pm.test(\"Hay existencias para entregarla\", () => pm.expect(d.dispensable).to.be.true);",
+                  "pm.test(\"Detalle por medicamento\", () => {",
+                  "  pm.expect(d.items[0].pide).to.eql(2);",
+                  "  pm.expect(d.items[0].hay).to.eql(Number(pm.collectionVariables.get(\"stockAntes\")));",
+                  "  pm.expect(d.items[0].faltan).to.eql(0);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "7.24 Disponibilidad de una formula ya dispensada -> 409",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/formulas/{{codigoFormula}}/disponibilidad"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"Codigo de error FORMULA_NO_EMITIDA\", () => pm.expect(pm.response.json().codigo).to.eql(\"FORMULA_NO_EMITIDA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "7.25 Anular la formula de prueba",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/formulas/{{codigoFormula4}}/anulacion"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Queda ANULADA\", () => pm.expect(pm.response.json().estado).to.eql(\"ANULADA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "7.26 Reenviar un aviso ya leido",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/notificaciones/{{codigoAviso}}/reenvio"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 202\", () => pm.response.to.have.status(202));",
+                  "const n = pm.response.json();",
+                  "pm.test(\"Crea un aviso nuevo\", () => pm.expect(n.codigo).to.not.eql(pm.collectionVariables.get(\"codigoAviso\")));",
+                  "pm.test(\"Sale como PENDIENTE\", () => pm.expect(n.estado).to.eql(\"PENDIENTE\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "7.27 Corregir destinatario de un aviso que no fallo -> 409",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/notificaciones/{{codigoAviso}}/destinatario",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"destinatario\": \"{{correoPaciente}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"Codigo de error NOTIFICACION_NO_FALLIDA\", () => pm.expect(pm.response.json().codigo).to.eql(\"NOTIFICACION_NO_FALLIDA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "7.28 Corregir destinatario vacio -> 400",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/notificaciones/{{codigoAviso}}/destinatario",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"destinatario\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "7.29 Reenviar el aviso del correo rechazado",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/notificaciones/{{codigoFallido}}/reenvio"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// En AWS ese aviso sigue FALLIDA (para eso esta la correccion): no se reenvia.",
+                  "// En local Mailpit lo acepto (ENVIADA): el reenvio crea una copia.",
+                  "if (pm.collectionVariables.get(\"estadoFallido\") === \"FALLIDA\") {",
+                  "  pm.test(\"Aviso no entregado: 409\", () => pm.response.to.have.status(409));",
+                  "  pm.test(\"Codigo NOTIFICACION_NO_ENTREGADA\", () => pm.expect(pm.response.json().codigo).to.eql(\"NOTIFICACION_NO_ENTREGADA\"));",
+                  "} else {",
+                  "  pm.test(\"Aviso entregado: se reenvia (202)\", () => pm.response.to.have.status(202));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "7.30 Corregir el correo del aviso rechazado y reenviarlo",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/notificaciones/{{codigoFallido}}/destinatario",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"destinatario\": \"{{correoPaciente}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Da tiempo a que termine el reintento de 6.52 y el aviso vuelva a FALLIDA",
+                  "setTimeout(() => {}, 3000);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.collectionVariables.get(\"estadoFallido\") === \"FALLIDA\") {",
+                  "  pm.test(\"Correccion aceptada (202)\", () => pm.response.to.have.status(202));",
+                  "  const n = pm.response.json();",
+                  "  pm.test(\"Nuevo destinatario e intentos en 0\", () => { pm.expect(n.destinatario).to.eql(pm.collectionVariables.get(\"correoPaciente\")); pm.expect(n.intentos).to.eql(0); });",
+                  "} else {",
+                  "  pm.test(\"Aviso ya enviado: no se corrige (409)\", () => pm.response.to.have.status(409));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "7.31 Reintentar en lote los avisos fallidos",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/notificaciones/reintentos"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Informa cuantos reintento\", () => pm.expect(pm.response.json().reintentadas).to.be.a(\"number\").and.at.least(0));"
                 ]
               }
             }

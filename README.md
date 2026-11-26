@@ -12,7 +12,7 @@ Proyecto final de **Profundización de Software** (Universidad de Cundinamarca).
 
 La interfaz web (React, carpeta `frontend/`) se sirve desde el mismo nginx que enruta las APIs: **http://3.139.58.88**.
 
-Los 4 microservicios tienen pruebas unitarias (264 en total) con cobertura de líneas del 100 %.
+Los 4 microservicios tienen pruebas unitarias (351 en total) con cobertura de líneas del 100 %.
 
 **Tecnologías:** Java 21, Spring Boot 4.1, React 19 + Vite, PostgreSQL 17, Flyway, Lombok, RabbitMQ, Docker Compose, Nginx,
 AWS (EC2, SQS, SES, RDS, ECR, Systems Manager), Telegram Bot API, GitHub Actions, k6, JUnit 5, Mockito, AssertJ, JaCoCo y Postman/Newman.
@@ -21,7 +21,7 @@ AWS (EC2, SQS, SES, RDS, ECR, Systems Manager), Telegram Bot API, GitHub Actions
 
 | | |
 | --- | --- |
-| Colección (117 peticiones) | [`pruebas/postman/MediAgenda.postman_collection.json`](pruebas/postman/MediAgenda.postman_collection.json) |
+| Colección (148 peticiones) | [`pruebas/postman/MediAgenda.postman_collection.json`](pruebas/postman/MediAgenda.postman_collection.json) |
 | Entorno AWS (`http://3.139.58.88`) | [`pruebas/postman/MediAgenda-AWS.postman_environment.json`](pruebas/postman/MediAgenda-AWS.postman_environment.json) |
 | Entorno local (Docker) | [`pruebas/postman/MediAgenda-Local.postman_environment.json`](pruebas/postman/MediAgenda-Local.postman_environment.json) |
 | Guía completa | [`pruebas/postman/LEEME.md`](pruebas/postman/LEEME.md) |
@@ -32,6 +32,27 @@ AWS (EC2, SQS, SES, RDS, ECR, Systems Manager), Telegram Bot API, GitHub Actions
 4. Clic derecho en la colección → **Run collection** → **Run** (las peticiones van en orden: cada una usa los códigos que crea la anterior).
 
 Última corrida contra AWS: **473 de 473 verificaciones**, promedio 109 ms, máximo 446 ms (todas bajo 500 ms).
+
+## Operaciones de negocio (además del CRUD)
+
+Cada microservicio tiene 5 operaciones de negocio distintas del CRUD, en `Operaciones…Controller`.
+
+| Servicio | Operación | Ruta |
+| --- | --- | --- |
+| ms-pacientes | Reactivar paciente | `PATCH /api/v1/pacientes/{codigo}/reactivacion` |
+| ms-pacientes | Registrar alergia | `POST /api/v1/pacientes/{codigo}/alergias` |
+| ms-pacientes | Verificar alergia antes de formular | `GET /api/v1/pacientes/{codigo}/alergias/verificacion?sustancia=` |
+| ms-pacientes | Cambiar TI por cédula (18 años) | `POST /api/v1/pacientes/{codigo}/cambio-documento` |
+| ms-pacientes | Compatibilidad sanguínea ABO/Rh | `GET /api/v1/pacientes/{codigo}/compatibilidad-sanguinea?donante=` |
+| ms-citas | Abrir agenda | `POST /api/v1/medicos/{codigo}/franjas` |
+| ms-citas | Reprogramar · cancelar · atender | `PUT …/reprogramacion` · `PATCH …/cancelacion` · `PATCH …/atencion` |
+| ms-citas | Volver a pedir el triage con IA | `POST /api/v1/citas/{codigo}/triage` |
+| ms-farmacia | Dispensar · anular fórmula | `POST …/dispensacion` · `PATCH …/anulacion` |
+| ms-farmacia | Reabastecer · dar de baja inventario | `PATCH /api/v1/medicamentos/{codigo}/stock` · `POST …/bajas` |
+| ms-farmacia | Verificar disponibilidad de una fórmula | `GET /api/v1/formulas/{codigo}/disponibilidad` |
+| ms-notificaciones | Reintentar · marcar leída | `POST …/reintento` · `PATCH …/lectura` |
+| ms-notificaciones | Reenviar · corregir destinatario | `POST …/reenvio` · `PATCH …/destinatario` |
+| ms-notificaciones | Reintentar en lote los fallidos | `POST /api/v1/notificaciones/reintentos` |
 
 ## Arquitectura de cada microservicio (arquitectura limpia)
 
