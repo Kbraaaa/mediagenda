@@ -17,6 +17,22 @@ Los 4 microservicios tienen pruebas unitarias (264 en total) con cobertura de l�
 **Tecnologías:** Java 21, Spring Boot 4.1, React 19 + Vite, PostgreSQL 17, Flyway, Lombok, RabbitMQ, Docker Compose, Nginx,
 AWS (EC2, SQS, SES, RDS, ECR, Systems Manager), Telegram Bot API, GitHub Actions, k6, JUnit 5, Mockito, AssertJ, JaCoCo y Postman/Newman.
 
+## Probar la API con Postman
+
+| | |
+| --- | --- |
+| Colección (117 peticiones) | [`pruebas/postman/MediAgenda.postman_collection.json`](pruebas/postman/MediAgenda.postman_collection.json) |
+| Entorno AWS (`http://3.139.58.88`) | [`pruebas/postman/MediAgenda-AWS.postman_environment.json`](pruebas/postman/MediAgenda-AWS.postman_environment.json) |
+| Entorno local (Docker) | [`pruebas/postman/MediAgenda-Local.postman_environment.json`](pruebas/postman/MediAgenda-Local.postman_environment.json) |
+| Guía completa | [`pruebas/postman/LEEME.md`](pruebas/postman/LEEME.md) |
+
+1. Descarga la colección y el entorno (en cada archivo, botón **Download raw file**).
+2. En Postman: **Import** → arrastra los dos archivos.
+3. Arriba a la derecha elige el entorno **MediAgenda - AWS**.
+4. Clic derecho en la colección → **Run collection** → **Run** (las peticiones van en orden: cada una usa los códigos que crea la anterior).
+
+Última corrida contra AWS: **473 de 473 verificaciones**, promedio 109 ms, máximo 446 ms (todas bajo 500 ms).
+
 ## Arquitectura de cada microservicio (arquitectura limpia)
 
 ```
@@ -76,6 +92,7 @@ Los servicios usan SQS, SES y ECR sin claves: los permisos vienen del rol de IAM
 | `scripts/aws/correr-k6-aws.bat [concurrencia\|carga\|estres]` | Pruebas de carga, estrés y concurrencia en el servidor |
 | `scripts/aws/migrar-a-rds.bat ENDPOINT` | Migración de la base del contenedor a RDS |
 | `scripts/aws/configurar-telegram.bat` | Conecta el bot de Telegram |
+| `scripts/aws/reiniciar-datos-demo.bat` | Borra los datos que dejaron las pruebas en RDS y carga datos de demostración |
 | `scripts/local/ejecutar-todas-las-pruebas.bat` | Pruebas unitarias de los 4 servicios |
 | `scripts/local/probar-con-docker.bat` | Levanta todo en local y corre la prueba de punta a punta |
 | `scripts/local/probar-gemini.bat` | Prueba solo la clave de Gemini |
